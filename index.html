@@ -140,7 +140,7 @@
             <span class="text-base font-bold text-indigo-400 mr-2 hidden sm:inline">Trons Games</span>
             <div id="nav-tabs" class="flex gap-1"></div>
         </div>
-        <div id="status-tag" class="text-[9px] text-slate-500 bg-slate-800 px-2 py-0.5 rounded uppercase font-bold tracking-tighter">Secure Local</div>
+        <div id="status-tag" class="text-[9px] text-slate-500 bg-slate-800 px-2 py-0.5 rounded uppercase font-bold tracking-tighter">Ready</div>
     </nav>
 
     <div id="game-viewport" class="game-viewport"></div>
@@ -253,7 +253,7 @@
     <script>
         const STORAGE_KEY = 'trons_games_v3';
         
-        // Define model constants based on environment needs
+        // Define model constants based on standard Gemini API naming
         const TEXT_MODEL = "gemini-1.5-flash"; 
         const TTS_MODEL = "gemini-1.5-flash"; 
         const IMAGE_MODEL = "imagen-4.0-generate-001";
@@ -523,7 +523,7 @@
                     section.querySelector('#tts-btn').classList.remove('hidden');
                     section.querySelector('#image-btn').classList.remove('hidden');
                 } catch (e) {
-                    console.error("AI Error:", e);
+                    console.error("AI Generation Error:", e);
                     section.querySelector('#loading-spinner').classList.add('hidden');
                     currentFortune = activeFortunes[Math.floor(Math.random() * activeFortunes.length)];
                     fText.innerText = currentFortune + " (AI unavailable)";
@@ -536,7 +536,7 @@
 
         window.callGemini = async function(vibe, activeKey) {
             const systemPrompt = `Whimsical magic teller. One short whimsical sentence. Style: ${vibe}. No markdown.`;
-            const userQuery = `Choices: Color ${selections.color}, Nums ${selections.num1}, ${selections.num2}. Reference results: ${activeFortunes.slice(0,3).join(", ")}.`;
+            const userQuery = `Choices: Color ${selections.color}, Nums ${selections.num1}, ${selections.num2}. Example fortunes: ${activeFortunes.slice(0,3).join(", ")}.`;
             
             const fetchFn = () => fetch(`https://generativelanguage.googleapis.com/v1beta/models/${TEXT_MODEL}:generateContent?key=${activeKey}`, {
                 method: 'POST', 
@@ -548,7 +548,7 @@
             });
             const result = await retryRequest(fetchFn);
             const text = result?.candidates?.[0]?.content?.parts?.[0]?.text;
-            if (!text) throw new Error("No response from AI");
+            if (!text) throw new Error("API returned an empty response.");
             return text;
         }
 
@@ -558,7 +558,8 @@
                     const res = await fn();
                     if (!res.ok) {
                         const errData = await res.json();
-                        throw new Error(errData?.error?.message || "API Error");
+                        console.warn("API Attempt Failed:", errData);
+                        throw new Error(errData?.error?.message || `HTTP Error ${res.status}`);
                     }
                     return await res.json();
                 } catch (e) {
@@ -574,11 +575,11 @@
             const activeKey = getActiveKey();
             btn.disabled = true; btn.innerText = "...";
             try {
-                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${TTS_MODEL}:generateContent?key=${activeKey}`, {
+                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent?key=${activeKey}`, {
                     method: 'POST', 
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        contents: [{ parts: [{ text: `Say magically: ${currentFortune}` }] }],
+                        contents: [{ parts: [{ text: `Say in a whimsical, magical voice: ${currentFortune}` }] }],
                         generationConfig: { 
                             responseModalities: ["AUDIO"], 
                             speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: "Aoede" } } } 
@@ -588,7 +589,7 @@
                 const result = await response.json();
                 const base64Audio = result?.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
                 if (base64Audio) window.playAudio(base64Audio);
-            } catch (e) { console.error("TTS Error", e); } 
+            } catch (e) { console.error("TTS Feature Error:", e); } 
             finally {
                 btn.disabled = false; btn.innerText = "Hear ✨";
             }
@@ -600,11 +601,12 @@
             const activeKey = getActiveKey();
             btn.innerText = "..."; btn.disabled = true;
             try {
+                // Using specific prediction structure from instructions
                 const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${IMAGE_MODEL}:predict?key=${activeKey}`, {
                     method: 'POST', 
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ 
-                        instances: [{ prompt: `Magic charm icon: ${currentFortune}. 3D glowing sticker, simple design, high contrast.` }], 
+                        instances: { prompt: `Magical lucky charm icon: ${currentFortune}. Sticker style, 3D render, glowing details.` }, 
                         parameters: { sampleCount: 1 } 
                     })
                 });
@@ -614,8 +616,10 @@
                     section.querySelector('#charm-image').src = `data:image/png;base64,${base64Image}`;
                     section.querySelector('#charm-container').classList.remove('hidden');
                     btn.classList.add('hidden');
+                } else {
+                    console.warn("Image API response was unexpected:", result);
                 }
-            } catch (e) { console.error("Image Error", e); } 
+            } catch (e) { console.error("Image Charm Error:", e); } 
             finally {
                 btn.disabled = false; btn.innerText = "Charm ✨";
             }
