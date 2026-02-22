@@ -1,0 +1,1164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cosmic Assault - Asteroid Shooter</title>
+
+    <!-- PWA MANIFEST LINK -->
+    <link rel="manifest" href="/manifest.json">
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap');
+        
+        body {
+            background-color: #0d0d1a; /* Deep space background */
+            font-family: 'Orbitron', sans-serif;
+            color: #ffffff;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            overflow: hidden; /* Prevent body scroll */
+        }
+        
+        #game-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 100%;
+            max-width: 900px;
+            padding: 10px;
+        }
+
+        #gameCanvas {
+            background-color: #000000;
+            border: 2px solid #55e6c1; /* Sci-fi border color */
+            box-shadow: 0 0 20px #55e6c155;
+            touch-action: none; /* Prevent scrolling/zooming on canvas */
+            width: 100%; /* Fluid width */
+            max-width: 800px;
+        }
+
+        #ui-stats {
+            display: flex;
+            justify-content: space-between;
+            width: 100%;
+            max-width: 800px;
+            padding: 10px 0;
+            font-size: 1rem;
+            color: #55e6c1;
+        }
+
+        #overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            display: none; /* Controlled by JS */
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            z-index: 10;
+        }
+
+        #overlay h1 {
+            font-size: 2.5rem;
+            margin-bottom: 20px;
+            color: #ff4d6d; /* Danger color */
+            text-shadow: 0 0 10px #ff4d6d;
+        }
+
+        #overlay button {
+            background: linear-gradient(45deg, #55e6c1, #308f7b);
+            color: #000000;
+            padding: 12px 30px;
+            border: none;
+            border-radius: 8px;
+            font-weight: bold;
+            font-size: 1.2rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 15px rgba(85, 230, 193, 0.4);
+        }
+
+        #overlay button:hover {
+            opacity: 0.9;
+            transform: translateY(-2px);
+        }
+        
+        .control-button {
+            background-color: #33333388;
+            color: #55e6c1;
+            border: 2px solid #55e6c1;
+            padding: 15px;
+            border-radius: 50%;
+            font-size: 1.5rem;
+            cursor: pointer;
+            user-select: none;
+            transition: background-color 0.1s;
+        }
+
+        .control-button:active {
+            background-color: #55e6c133;
+            color: #ffffff;
+            box-shadow: 0 0 10px #55e6c1;
+        }
+
+        #mobile-controls {
+            display: flex;
+            justify-content: space-between;
+            width: 100%;
+            max-width: 800px;
+            padding: 10px 0;
+        }
+
+        /* Responsive styling for controls and leaderboard */
+        @media (min-width: 768px) {
+            #mobile-controls { display: none; }
+        }
+        @media (max-width: 767px) {
+            #mobile-controls { display: flex; }
+            #leaderboard { margin-top: 10px; font-size: 0.85rem; }
+        }
+
+        #gemini-output button {
+            background: #ff4d6d;
+            border: 1px solid #ff4d6d;
+            box-shadow: none;
+            color: white;
+        }
+        #gemini-output button:hover {
+            background: #e6395e;
+        }
+    </style>
+</head>
+<body>
+
+<div id="game-container">
+    
+    <div id="ui-stats">
+        <span id="score-display">SCORE: 0</span>
+        <span id="lives-display">LIVES: 3</span>
+    </div>
+
+    <canvas id="gameCanvas" width="800" height="450"></canvas>
+
+    <!-- Mobile Controls -->
+    <div id="mobile-controls">
+        <div class="dir-controls">
+            <button class="control-button thrust" data-action="thrust" title="Thrust (W / Arrow Up)">▲</button>
+            <button class="control-button left" data-action="left" title="Turn Left (A / Arrow Left)">⟲</button>
+            <button class="control-button right" data-action="right" title="Turn Right (D / Arrow Right)">⟳</button>
+        </div>
+        <div>
+            <button class="control-button" id="fire-button" title="Fire (Space)">🔥</button>
+        </div>
+    </div>
+
+    <div id="overlay">
+        <h1 id="overlay-title">GAME OVER</h1>
+        <p id="overlay-score" class="text-xl mb-4">Final Score: 0</p>
+        <button id="start-button">RESTART</button> <!-- Button now uses event listener -->
+
+        <!-- Gemini API Integration: Score Commentary and TTS -->
+        <div id="gemini-output" class="mt-6 w-full max-w-sm text-center p-3 rounded-lg bg-[#333344] border border-[#ff4d6d55]">
+            <p id="score-commentary" class="text-md text-[#ff4d6d] font-bold mb-2">Awaiting score analysis...</p>
+            <button id="tts-button" class="px-4 py-2 text-sm rounded transition-all disabled:opacity-50" disabled>
+                <span id="tts-text">✨ Hear Your Fate (Loading TTS) ✨</span>
+            </button>
+        </div>
+        
+        <p id="high-score-message" class="text-lg mt-4 text-[#55e6c1]"></p>
+        <p class="text-sm mt-4 text-gray-400">Controls: WASD or Arrow Keys for movement, Space to fire.</p>
+    </div>
+
+    <!-- Leaderboard UI -->
+    <div id="leaderboard" class="w-full max-w-[800px] mt-4 p-4 rounded-lg bg-[#222233] border border-[#55e6c155]">
+        <h2 class="text-lg font-bold mb-2 text-center text-[#55e6c1]">HIGH SCORE BOARD</h2>
+        <p id="user-id-display" class="text-xs mb-2 text-center text-gray-400">USER ID: Loading...</p>
+        <div id="scores-list" class="text-sm text-gray-300">
+            <p class="text-center">Initializing Firebase...</p>
+        </div>
+    </div>
+
+</div>
+
+<script type="module">
+    // --- Firebase and PWA Setup Imports ---
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+    import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+    import { 
+        getFirestore, collection, doc, setDoc, query, onSnapshot, serverTimestamp, setLogLevel 
+    } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+    // PWA Service Worker Registration
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+            navigator.serviceWorker.register('/service-worker.js')
+                .then(registration => {
+                    console.log('ServiceWorker registration successful with scope: ', registration.scope);
+                })
+                .catch(err => {
+                    console.log('ServiceWorker registration failed: ', err);
+                });
+        });
+    }
+
+    // --- Global Audio State ---
+    let audioContext = null; 
+    try {
+        audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        if (audioContext.state === 'suspended') {
+            console.log("AudioContext suspended, will resume on user interaction.");
+        }
+    } catch (e) {
+        console.error("Web Audio API not supported or failed to initialize:", e);
+    }
+
+    // --- Sound Generation Functions ---
+
+    /**
+     * Generates and plays a procedural laser/shot sound effect.
+     */
+    function playLaserSound() {
+        if (!audioContext || audioContext.state !== 'running') return;
+
+        const oscillator = audioContext.createOscillator();
+        const gainNode = audioContext.createGain();
+
+        oscillator.type = 'square';
+        
+        oscillator.frequency.setValueAtTime(1000, audioContext.currentTime);
+        oscillator.frequency.exponentialRampToValueAtTime(400, audioContext.currentTime + 0.08);
+        
+        gainNode.gain.setValueAtTime(0.2, audioContext.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.0001, audioContext.currentTime + 0.1);
+
+        oscillator.connect(gainNode).connect(audioContext.destination);
+        oscillator.start();
+        oscillator.stop(audioContext.currentTime + 0.1);
+    }
+
+    /**
+     * Generates and plays a procedural explosion sound effect for ASTEROIDS.
+     */
+    function playExplosionSound() {
+        if (!audioContext || audioContext.state !== 'running') return;
+        
+        const noiseDuration = 0.5;
+        const bufferSize = audioContext.sampleRate * noiseDuration;
+        const buffer = audioContext.createBuffer(1, bufferSize, audioContext.sampleRate);
+        const output = buffer.getChannelData(0);
+
+        for (let i = 0; i < bufferSize; i++) {
+            output[i] = Math.random() * 2 - 1;
+        }
+
+        const noise = audioContext.createBufferSource();
+        noise.buffer = buffer;
+
+        const gainNode = audioContext.createGain();
+        const filter = audioContext.createBiquadFilter();
+
+        filter.type = 'bandpass';
+        filter.frequency.setValueAtTime(100, audioContext.currentTime);
+        filter.Q.setValueAtTime(0.2, audioContext.currentTime);
+
+        gainNode.gain.setValueAtTime(1.0, audioContext.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + 0.4); 
+
+        noise.connect(filter).connect(gainNode).connect(audioContext.destination);
+        
+        noise.start();
+        noise.stop(audioContext.currentTime + noiseDuration);
+    }
+
+    /**
+     * Generates and plays a procedural ship explosion sound effect (more chaotic).
+     * NEW FEATURE: Ship explosion sound
+     */
+    function playShipExplosionSound() {
+        if (!audioContext || audioContext.state !== 'running') return;
+
+        const osc1 = audioContext.createOscillator();
+        const osc2 = audioContext.createOscillator();
+        const noise = audioContext.createBufferSource();
+        const bufferSize = audioContext.sampleRate * 0.7;
+        const buffer = audioContext.createBuffer(1, bufferSize, audioContext.sampleRate);
+        const output = buffer.getChannelData(0);
+        for (let i = 0; i < bufferSize; i++) { output[i] = Math.random() * 2 - 1; }
+        noise.buffer = buffer;
+
+        const gainNode = audioContext.createGain();
+        const filter = audioContext.createBiquadFilter();
+
+        filter.type = 'lowpass';
+        filter.frequency.setValueAtTime(800, audioContext.currentTime);
+        filter.frequency.linearRampToValueAtTime(150, audioContext.currentTime + 0.5);
+
+        osc1.type = 'sine';
+        osc1.frequency.setValueAtTime(50, audioContext.currentTime);
+        osc1.frequency.exponentialRampToValueAtTime(1, audioContext.currentTime + 0.6);
+
+        osc2.type = 'square';
+        osc2.frequency.setValueAtTime(100, audioContext.currentTime);
+        osc2.frequency.exponentialRampToValueAtTime(10, audioContext.currentTime + 0.5);
+
+        gainNode.gain.setValueAtTime(1.5, audioContext.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + 0.6);
+
+        osc1.connect(gainNode);
+        osc2.connect(gainNode);
+        noise.connect(filter).connect(gainNode);
+
+        gainNode.connect(audioContext.destination);
+
+        osc1.start();
+        osc2.start();
+        noise.start();
+        
+        const stopTime = audioContext.currentTime + 0.6;
+        osc1.stop(stopTime);
+        osc2.stop(stopTime);
+        noise.stop(stopTime);
+    }
+
+
+    // --- Global Firebase State ---
+    const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+    const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
+
+    let app, db, auth;
+    let userId = null;
+    let isAuthReady = false;
+    let currentHighScores = [];
+    const SCORES_COLLECTION_PATH = `artifacts/${appId}/public/data/high_scores`;
+
+    // --- Gemini API State ---
+    const GEMINI_API_KEY = "";
+    const GEMINI_TEXT_MODEL = "gemini-2.5-flash-preview-05-20";
+    const GEMINI_TTS_MODEL = "gemini-2.5-flash-preview-tts";
+    let audioBlobUrl = null;
+
+    // --- Utility Functions for Gemini TTS ---
+
+    function base64ToArrayBuffer(base64) {
+        try {
+            const binaryString = atob(base64);
+            const len = binaryString.length;
+            const bytes = new Uint8Array(len);
+            for (let i = 0; i < len; i++) {
+                bytes[i] = binaryString.charCodeAt(i);
+            }
+            return bytes.buffer;
+        } catch (e) {
+            console.error("Base64 decoding failed during TTS processing:", e);
+            return new ArrayBuffer(0); 
+        }
+    }
+
+    function pcmToWav(pcm16, sampleRate) {
+        const numChannels = 1;
+        const bytesPerSample = 2;
+
+        const buffer = new ArrayBuffer(44 + pcm16.length * bytesPerSample);
+        const view = new DataView(buffer);
+        let offset = 0;
+
+        function writeString(s) {
+            for (let i = 0; i < s.length; i++) {
+                view.setUint8(offset + i, s.charCodeAt(i));
+            }
+            offset += s.length;
+        }
+
+        writeString('RIFF');
+        view.setUint32(offset, 36 + pcm16.length * bytesPerSample, true); offset += 4;
+        writeString('WAVE');
+
+        writeString('fmt ');
+        view.setUint32(offset, 16, true); offset += 4;
+        view.setUint16(offset, 1, true); offset += 2;
+        view.setUint16(offset, numChannels, true); offset += 2;
+        view.setUint32(offset, sampleRate, true); offset += 4;
+        view.setUint32(offset, sampleRate * numChannels * bytesPerSample, true); offset += 4;
+        view.setUint16(offset, numChannels * bytesPerSample, true); offset += 2;
+        view.setUint16(offset, bytesPerSample * 8, true); offset += 2;
+
+        writeString('data');
+        view.setUint32(offset, pcm16.length * bytesPerSample, true); offset += 4;
+
+        for (let i = 0; i < pcm16.length; i++) {
+            view.setInt16(offset, pcm16[i], true);
+            offset += 2;
+        }
+
+        return new Blob([buffer], { type: 'audio/wav' });
+    }
+
+    async function exponentialBackoffFetch(url, options, maxRetries = 5, delay = 1000) {
+        for (let i = 0; i < maxRetries; i++) {
+            try {
+                const response = await fetch(url, options);
+                if (response.ok) return response;
+                
+                if (response.status >= 400 && response.status < 500 && response.status !== 429) {
+                    throw new Error(`API Error: ${response.status} ${response.statusText}`);
+                }
+
+                console.warn(`Attempt ${i + 1} failed with status ${response.status}. Retrying in ${delay / 1000}s...`);
+            } catch (error) {
+                if (i === maxRetries - 1) throw error;
+            }
+            await new Promise(resolve => setTimeout(resolve, delay * Math.pow(2, i)));
+        }
+        throw new Error("Failed to fetch data after maximum retries.");
+    }
+
+
+    // --- Gemini API Integration Functions ---
+
+    async function generateTTS(text) {
+        const ttsButton = document.getElementById('tts-button');
+        const ttsText = document.getElementById('tts-text');
+        
+        ttsButton.disabled = true;
+        ttsText.textContent = "✨ Generating Audio...";
+
+        try {
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_TTS_MODEL}:generateContent?key=${GEMINI_API_KEY}`;
+            
+            const payload = {
+                contents: [{ parts: [{ text: text }] }],
+                generationConfig: {
+                    responseModalities: ["AUDIO"],
+                    speechConfig: {
+                        voiceConfig: {
+                            prebuiltVoiceConfig: { voiceName: "Fenrir" } 
+                        }
+                    }
+                },
+            };
+
+            const response = await exponentialBackoffFetch(apiUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            const result = await response.json();
+            const part = result?.candidates?.[0]?.content?.parts?.[0];
+            const audioData = part?.inlineData?.data;
+            const mimeType = part?.inlineData?.mimeType;
+
+            if (audioData && mimeType && mimeType.startsWith("audio/L16")) {
+                const sampleRateMatch = mimeType.match(/rate=(\d+)/);
+                const sampleRate = sampleRateMatch ? parseInt(sampleRateMatch[1], 10) : 24000;
+
+                const pcmData = base64ToArrayBuffer(audioData);
+                
+                if (pcmData.byteLength === 0) {
+                    ttsText.textContent = "TTS Failed (Corrupt Data)";
+                    return;
+                }
+
+                const pcm16 = new Int16Array(pcmData);
+                const wavBlob = pcmToWav(pcm16, sampleRate);
+                
+                if (audioBlobUrl) URL.revokeObjectURL(audioBlobUrl);
+                audioBlobUrl = URL.createObjectURL(wavBlob);
+                
+                ttsText.textContent = "✨ Play Commentary ✨";
+            } else {
+                ttsText.textContent = "TTS Failed (No Audio)";
+                console.error("TTS API response missing audio data or invalid mimeType:", result);
+            }
+        } catch (error) {
+            console.error("Error generating TTS:", error);
+            ttsText.textContent = "TTS Failed (API Error)";
+        } finally {
+            ttsButton.disabled = false;
+        }
+    }
+
+    function playTTS() {
+        if (audioBlobUrl) {
+            const audio = new Audio(audioBlobUrl);
+            const ttsButton = document.getElementById('tts-button');
+            const originalText = document.getElementById('tts-text').textContent;
+
+            audio.volume = 1.0; 
+
+            audio.play().catch(e => {
+                console.error("Audio playback failed (likely browser policy):", e);
+                document.getElementById('tts-text').textContent = "Audio blocked by browser!";
+                ttsButton.disabled = false;
+            });
+
+            ttsButton.disabled = true;
+            document.getElementById('tts-text').textContent = "🔈 Playing...";
+
+            audio.onended = () => {
+                ttsButton.disabled = false;
+                document.getElementById('tts-text').textContent = originalText;
+            };
+            audio.onerror = () => {
+                 ttsButton.disabled = false;
+                 document.getElementById('tts-text').textContent = "Audio Error!";
+            }
+        }
+    }
+
+
+    async function generateScoreCommentary(finalScore) {
+        const commentaryElement = document.getElementById('score-commentary');
+        commentaryElement.textContent = "✨ Generating final transmission...";
+
+        const systemPrompt = `You are a dramatic, vintage space game AI narrator (like a 1980s computer). 
+                            Generate a two-part response about the player's performance. 
+                            Part 1: A brief, single-word title (e.g., 'Exterminator', 'Rookie', 'Vaporized'). 
+                            Part 2: A short, dramatic sentence (10-15 words) congratulating or mocking the pilot. 
+                            Format the output strictly as 'TITLE: COMMENTARY'.`;
+
+        const userQuery = `The final score achieved by the pilot was ${finalScore}. Analyze this performance.`;
+        
+        try {
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_TEXT_MODEL}:generateContent?key=${GEMINI_API_KEY}`;
+            
+            const payload = {
+                contents: [{ parts: [{ text: userQuery }] }],
+                systemInstruction: { parts: [{ text: systemPrompt }] },
+            };
+
+            const response = await exponentialBackoffFetch(apiUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            const result = await response.json();
+            const text = result?.candidates?.[0]?.content?.parts?.[0]?.text || "AI OFFLINE: Score Analysis Unavailable.";
+            
+            const [title, commentary] = text.split(':').map(s => s.trim());
+            
+            if (title && commentary) {
+                const finalCommentary = `${title.toUpperCase()}: ${commentary}`;
+                commentaryElement.textContent = finalCommentary;
+                
+                const ttsText = `Game Over. Pilot ${userId.substring(0, 4)} achieved a score of ${finalScore}. ${commentary}`;
+                generateTTS(ttsText);
+                
+            } else {
+                commentaryElement.textContent = `ANALYSIS FAILED: Score ${finalScore}`;
+                generateTTS(`Game Over. Final score: ${finalScore}. Analysis failed.`);
+            }
+
+        } catch (error) {
+            console.error("Error generating score commentary:", error);
+            commentaryElement.textContent = "AI OFFLINE: Score Analysis Unavailable.";
+            generateTTS(`Game Over. Final score: ${finalScore}. System failure.`);
+        }
+    }
+
+    // --- Firebase Logic (Unchanged) ---
+    
+    async function setupFirebase() {
+        if (Object.keys(firebaseConfig).length === 0) {
+            console.error("Firebase config is missing. High score persistence disabled.");
+            return;
+        }
+        
+        app = initializeApp(firebaseConfig);
+        db = getFirestore(app);
+        auth = getAuth(app);
+        setLogLevel('debug');
+
+        try {
+            if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                await signInWithCustomToken(auth, __initial_auth_token);
+            } else {
+                await signInAnonymously(auth);
+            }
+        } catch (error) {
+            console.error("Firebase Auth failed:", error);
+        }
+
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                userId = user.uid;
+            } else {
+                userId = crypto.randomUUID(); 
+            }
+            document.getElementById('user-id-display').textContent = `USER ID: ${userId}`;
+            isAuthReady = true;
+            loadHighScores();
+        });
+    }
+
+    async function saveHighScore(finalScore) {
+        if (!isAuthReady || finalScore <= 0) return;
+
+        try {
+            const userDocRef = doc(db, SCORES_COLLECTION_PATH, userId);
+            const existingScoreDoc = currentHighScores.find(s => s.userId === userId);
+            const existingScore = existingScoreDoc ? existingScoreDoc.score : 0;
+
+            if (finalScore > existingScore) {
+                 await setDoc(userDocRef, {
+                    userId: userId,
+                    score: finalScore,
+                    timestamp: serverTimestamp(),
+                    displayName: `Pilot ${userId.substring(0, 4)}` 
+                }, { merge: true });
+                return true;
+            }
+            return false;
+        } catch (error) {
+            console.error("Error saving high score:", error);
+            return false;
+        }
+    }
+
+    function loadHighScores() {
+        if (!isAuthReady || !db) return;
+
+        const scoresRef = collection(db, SCORES_COLLECTION_PATH);
+        const q = query(scoresRef);
+
+        onSnapshot(q, (snapshot) => {
+            const scores = [];
+            snapshot.forEach((doc) => {
+                scores.push(doc.data());
+            });
+            scores.sort((a, b) => b.score - a.score);
+            currentHighScores = scores;
+            renderHighScores(scores);
+        }, (error) => {
+            console.error("Error loading high scores:", error);
+        });
+    }
+
+    function renderHighScores(scores) {
+        const scoresList = document.getElementById('scores-list');
+        scoresList.innerHTML = '';
+
+        if (scores.length === 0) {
+            scoresList.innerHTML = '<p class="text-center italic">Be the first to post a score!</p>';
+            return;
+        }
+
+        const listHtml = scores.map((s, index) => {
+            const isCurrentUser = s.userId === userId;
+            const style = isCurrentUser ? 'font-bold text-[#ff4d6d]' : 'text-gray-300';
+            const rank = index + 1;
+            const displayName = s.displayName || `Pilot ${s.userId.substring(0, 4)}`;
+
+            return `
+                <div class="flex justify-between py-1 px-2 border-b border-[#333344] ${style}">
+                    <span class="w-1/12">${rank}.</span>
+                    <span class="w-7/12 truncate">${displayName}</span>
+                    <span class="w-4/12 text-right">${s.score.toLocaleString()}</span>
+                </div>
+            `;
+        }).join('');
+
+        scoresList.innerHTML = listHtml;
+    }
+
+
+    // --- Game Engine Logic ---
+    
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    const scoreDisplay = document.getElementById('score-display');
+    const livesDisplay = document.getElementById('lives-display');
+    const overlay = document.getElementById('overlay');
+    const overlayTitle = document.getElementById('overlay-title');
+    const overlayScore = document.getElementById('overlay-score');
+    const highScoreMessage = document.getElementById('high-score-message');
+
+    // Constants 
+    const SHIP_SIZE = 25;
+    const SHIP_THRUST = 0.05;
+    const SHIP_FRICTION = 0.99;
+    const ROTATION_SPEED = 0.05;
+    const BULLET_SPEED = 5;
+    const BULLET_MAX_AGE = 60;
+    const ASTEROID_SPAWN_INTERVAL = 120;
+    const RESPAWN_TIME_FRAMES = 5 * 60; // 5 seconds * 60 FPS
+
+    // Game state variables 
+    let gameLoopId;
+    let score = 0;
+    let lives = 3;
+    let isGameOver = true;
+    let asteroidSpawnTimer = 0;
+    let ship;
+    let asteroids = [];
+    let bullets = [];
+    
+    // NEW Respawn State
+    let isRespawning = false;
+    let respawnTimer = 0;
+    
+    let keys = {
+        'w': false, 'a': false, 'd': false, 
+        'ArrowUp': false, 'ArrowLeft': false, 'ArrowRight': false, 
+        ' ': false 
+    };
+
+    function resizeCanvas() {
+        const container = document.getElementById('game-container');
+        const containerWidth = container.clientWidth - 20;
+        const BASE_WIDTH = 800;
+        const BASE_HEIGHT = 450; 
+        canvas.width = BASE_WIDTH;
+        canvas.height = BASE_HEIGHT;
+        const aspectRatio = BASE_HEIGHT / BASE_WIDTH;
+        canvas.style.height = `${containerWidth * aspectRatio}px`;
+    }
+
+    function checkCollision(obj1, obj2) {
+        const r1 = obj1.radius || (obj1.size / 2);
+        const r2 = obj2.radius || (obj2.size / 2);
+        const dx = obj1.x - obj2.x;
+        const dy = obj1.y - obj2.y;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        return distance < (r1 + r2);
+    }
+    
+    function createAsteroidShape(radius) {
+        const numVertices = Math.floor(Math.random() * 5) + 8;
+        const shape = [];
+        for (let i = 0; i < numVertices; i++) {
+            const angle = (i / numVertices) * Math.PI * 2;
+            const r = radius * (0.8 + Math.random() * 0.4); 
+            const x = r * Math.cos(angle);
+            const y = r * Math.sin(angle);
+            shape.push([x, y]);
+        }
+        return shape;
+    }
+    
+    class Ship {
+        constructor() {
+            this.x = canvas.width / 2;
+            this.y = canvas.height / 2;
+            this.vx = 0;
+            this.vy = 0;
+            this.angle = Math.PI / 2;
+            this.size = SHIP_SIZE;
+            this.radius = SHIP_SIZE / 2;
+            this.canFire = true;
+            this.fireCooldown = 0;
+        }
+        update() {
+            if (keys['a'] || keys['ArrowLeft']) { this.angle += ROTATION_SPEED; }
+            if (keys['d'] || keys['ArrowRight']) { this.angle -= ROTATION_SPEED; }
+            if (keys['w'] || keys['ArrowUp']) {
+                this.vx += SHIP_THRUST * Math.cos(this.angle);
+                this.vy -= SHIP_THRUST * Math.sin(this.angle);
+            }
+            this.vx *= SHIP_FRICTION;
+            this.vy *= SHIP_FRICTION;
+            this.x += this.vx;
+            this.y += this.vy;
+            if (this.x < 0) this.x = canvas.width;
+            if (this.x > canvas.width) this.x = 0;
+            if (this.y < 0) this.y = canvas.height;
+            if (this.y > canvas.height) this.y = 0;
+            if (this.fireCooldown > 0) { this.fireCooldown--; }
+            this.canFire = this.fireCooldown === 0;
+            if ((keys[' '] || keys['fire']) && this.canFire) {
+                this.fire();
+                this.fireCooldown = 15;
+            }
+        }
+        fire() {
+            playLaserSound(); 
+            
+            const bullet = new Bullet(
+                this.x + (this.size * Math.cos(this.angle)),
+                this.y - (this.size * Math.sin(this.angle)),
+                this.angle
+            );
+            bullets.push(bullet);
+        }
+        draw() {
+            ctx.save();
+            ctx.translate(this.x, this.y);
+            ctx.rotate(-this.angle + Math.PI / 2);
+            ctx.beginPath();
+            ctx.moveTo(0, -this.size * 0.8);
+            ctx.lineTo(-this.size * 0.6, this.size * 0.5);
+            ctx.lineTo(this.size * 0.6, this.size * 0.5);
+            ctx.closePath();
+            ctx.fillStyle = '#ffffff';
+            ctx.fill();
+            if (keys['w'] || keys['ArrowUp']) {
+                ctx.beginPath();
+                ctx.moveTo(0, this.size * 0.6);
+                ctx.lineTo(-this.size * 0.4, this.size * 0.8 + Math.random() * 5);
+                ctx.lineTo(this.size * 0.4, this.size * 0.8 + Math.random() * 5);
+                ctx.closePath();
+                ctx.fillStyle = '#ff9900';
+                ctx.fill();
+            }
+            ctx.restore();
+        }
+    }
+
+    class Bullet {
+        constructor(x, y, angle) {
+            this.x = x;
+            this.y = y;
+            this.vx = BULLET_SPEED * Math.cos(angle);
+            this.vy = -BULLET_SPEED * Math.sin(angle);
+            this.size = 3;
+            this.age = 0;
+            this.radius = this.size / 2;
+        }
+
+        update() {
+            this.x += this.vx;
+            this.y += this.vy;
+            this.age++;
+            if (this.x < -this.size || this.x > canvas.width + this.size ||
+                this.y < -this.size || this.y > canvas.height + this.size) {
+                this.age = BULLET_MAX_AGE + 1;
+            }
+        }
+
+        draw() {
+            ctx.fillStyle = '#ff4d6d';
+            ctx.beginPath();
+            ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+            ctx.fill();
+        }
+    }
+    
+    class Asteroid {
+        constructor(x, y, radius) {
+            this.x = x;
+            this.y = y;
+            this.radius = radius;
+            this.vx = (Math.random() - 0.5) * 1.5;
+            this.vy = (Math.random() - 0.5) * 1.5;
+            this.rotationSpeed = (Math.random() - 0.5) * 0.02;
+            this.angle = Math.random() * Math.PI * 2;
+            this.shape = createAsteroidShape(radius);
+            this.color = '#aaaaaa';
+        }
+
+        update() {
+            this.x += this.vx;
+            this.y += this.vy;
+            this.angle += this.rotationSpeed;
+            if (this.x < -this.radius) this.x = canvas.width + this.radius;
+            if (this.x > canvas.width + this.radius) this.x = -this.radius;
+            if (this.y < -this.radius) this.y = canvas.height + this.radius;
+            if (this.y > canvas.height + this.radius) this.y = -this.radius;
+        }
+
+        draw() {
+            ctx.save();
+            ctx.translate(this.x, this.y);
+            ctx.rotate(this.angle);
+            ctx.beginPath();
+            this.shape.forEach(([x, y], index) => {
+                if (index === 0) { ctx.moveTo(x, y); } else { ctx.lineTo(x, y); }
+            });
+            ctx.closePath();
+            ctx.lineWidth = 2;
+            ctx.strokeStyle = '#cccccc';
+            ctx.stroke();
+            ctx.fillStyle = '#666666';
+            ctx.fill();
+            ctx.restore();
+        }
+        
+        split() {
+            playExplosionSound(); 
+            
+            const newAsteroids = [];
+            if (this.radius > 15) {
+                const newRadius = this.radius / 2;
+                for (let i = 0; i < 3; i++) {
+                    const newAsteroid = new Asteroid(
+                        this.x + (Math.random() * 10 - 5),
+                        this.y + (Math.random() * 10 - 5),
+                        newRadius
+                    );
+                    newAsteroid.vx = (Math.random() - 0.5) * 3; 
+                    newAsteroid.vy = (Math.random() - 0.5) * 3;
+                    newAsteroids.push(newAsteroid);
+                }
+                score += 25;
+            } else {
+                score += 50;
+            }
+            scoreDisplay.textContent = `SCORE: ${score}`;
+            return newAsteroids;
+        }
+    }
+
+    function spawnAsteroid() {
+        let x, y, radius = 40 + Math.random() * 20;
+        const side = Math.floor(Math.random() * 4); 
+        switch (side) {
+            case 0: x = Math.random() * canvas.width; y = -radius; break;
+            case 1: x = canvas.width + radius; y = Math.random() * canvas.height; break;
+            case 2: x = Math.random() * canvas.width; y = canvas.height + radius; break;
+            case 3: x = -radius; y = Math.random() * canvas.height; break;
+        }
+        const newAsteroid = new Asteroid(x, y, radius);
+        asteroids.push(newAsteroid);
+    }
+    
+    function updateGame() {
+        if (isGameOver) return;
+        
+        // NEW: Handle Respawn Logic
+        if (isRespawning) {
+            respawnTimer--;
+            if (respawnTimer <= 0) {
+                isRespawning = false;
+                ship = new Ship(); // Spawn new ship object
+            }
+            // Skip ship controls/collisions while respawning
+            return; 
+        }
+
+        ship.update();
+        bullets.forEach(bullet => bullet.update());
+        asteroids.forEach(asteroid => asteroid.update());
+
+        asteroidSpawnTimer++;
+        if (asteroidSpawnTimer >= ASTEROID_SPAWN_INTERVAL) {
+            if (asteroids.length < 10) { spawnAsteroid(); }
+            asteroidSpawnTimer = 0;
+        }
+
+        const newAsteroidsAfterCollisions = [];
+        asteroids = asteroids.filter(asteroid => {
+            let hit = false;
+            bullets = bullets.filter(bullet => {
+                if (checkCollision(bullet, asteroid)) { hit = true; return false; }
+                return true;
+            });
+            if (hit) {
+                newAsteroidsAfterCollisions.push(...asteroid.split());
+                return false;
+            }
+            return true;
+        });
+        asteroids.push(...newAsteroidsAfterCollisions);
+
+        for (let i = 0; i < asteroids.length; i++) {
+            if (checkCollision(ship, asteroids[i])) {
+                // NEW: Play ship explosion sound
+                playShipExplosionSound();
+                
+                lives--;
+                livesDisplay.textContent = `LIVES: ${lives}`;
+                
+                asteroids.splice(i, 1);
+                i--;
+                
+                if (lives <= 0) {
+                    gameOver();
+                    break;
+                } else {
+                    // NEW: Start respawn sequence
+                    isRespawning = true;
+                    respawnTimer = RESPAWN_TIME_FRAMES;
+                    
+                    // Reset ship controls during respawn
+                    Object.keys(keys).forEach(k => keys[k] = false);
+                    break; 
+                }
+            }
+        }
+        bullets = bullets.filter(bullet => bullet.age <= BULLET_MAX_AGE);
+    }
+    
+    function drawGame() {
+        ctx.fillStyle = '#000000';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        asteroids.forEach(asteroid => asteroid.draw());
+        bullets.forEach(bullet => bullet.draw());
+        
+        // NEW: Draw ship only if NOT respawning
+        if (!isGameOver) { 
+            if (!isRespawning) {
+                ship.draw(); 
+            } else {
+                // Draw the countdown timer during respawn
+                const remainingSeconds = Math.ceil(respawnTimer / 60);
+                
+                ctx.font = "20px 'Orbitron', sans-serif";
+                ctx.fillStyle = '#ff4d6d';
+                ctx.textAlign = 'center';
+                ctx.fillText(
+                    "RESPAWNING", 
+                    canvas.width / 2, 
+                    canvas.height / 2 - 40
+                );
+                
+                ctx.font = "80px 'Orbitron', sans-serif";
+                ctx.fillStyle = '#ff4d6d'; 
+                ctx.fillText(
+                    remainingSeconds.toString(), 
+                    canvas.width / 2, 
+                    canvas.height / 2 + 30
+                );
+            }
+        }
+
+    }
+
+    function gameLoop() {
+        if (!isGameOver) {
+            updateGame();
+            drawGame();
+            gameLoopId = requestAnimationFrame(gameLoop);
+        }
+    }
+    
+    function startGame() {
+        if (audioContext && audioContext.state === 'suspended') {
+            audioContext.resume().catch(e => console.error("Failed to resume AudioContext:", e));
+        }
+
+        score = 0;
+        lives = 3;
+        isGameOver = false;
+        isRespawning = false; // Reset state
+        respawnTimer = 0; // Reset state
+        asteroids = [];
+        bullets = [];
+        highScoreMessage.textContent = "";
+        document.getElementById('score-commentary').textContent = "Awaiting score analysis...";
+        
+        document.getElementById('tts-button').disabled = true;
+        document.getElementById('tts-text').textContent = "✨ Hear Your Fate (Loading TTS) ✨";
+        if (audioBlobUrl) {
+            URL.revokeObjectURL(audioBlobUrl);
+            audioBlobUrl = null;
+        }
+        
+        Object.keys(keys).forEach(k => keys[k] = false);
+
+        ship = new Ship();
+        for (let i = 0; i < 4; i++) {
+            spawnAsteroid();
+        }
+
+        scoreDisplay.textContent = `SCORE: ${score}`;
+        livesDisplay.textContent = `LIVES: ${lives}`;
+        overlay.style.display = 'none';
+
+        cancelAnimationFrame(gameLoopId);
+        gameLoopId = requestAnimationFrame(gameLoop);
+    }
+    
+    async function gameOver() {
+        isGameOver = true;
+        cancelAnimationFrame(gameLoopId);
+        
+        const finalScore = score;
+        const isNewHighScore = await saveHighScore(finalScore);
+
+        overlayTitle.textContent = "GAME OVER";
+        overlayScore.textContent = `Final Score: ${finalScore.toLocaleString()}`;
+        
+        if (isNewHighScore) {
+            highScoreMessage.textContent = "NEW HIGH SCORE RECORDED!";
+        } else if (finalScore > 0) {
+            highScoreMessage.textContent = "Score saved.";
+        } else {
+            highScoreMessage.textContent = "Zero score was not saved.";
+        }
+        
+        generateScoreCommentary(finalScore);
+        
+        overlay.style.display = 'flex';
+        drawGame();
+    }
+
+
+    // --- Input Handling (Unchanged) ---
+    document.addEventListener('keydown', (e) => {
+        const key = e.key;
+        if (keys.hasOwnProperty(key)) {
+            keys[key] = true;
+            if (key === ' ' || key.startsWith('Arrow')) { e.preventDefault(); }
+        }
+    });
+
+    document.addEventListener('keyup', (e) => {
+        const key = e.key;
+        if (keys.hasOwnProperty(key)) { keys[key] = false; }
+    });
+    
+    function setKey(action, state) {
+        // Prevent key input when respawning
+        if (isRespawning && state) return; 
+
+        switch (action) {
+            case 'thrust': keys['w'] = keys['ArrowUp'] = state; break;
+            case 'left': keys['a'] = keys['ArrowLeft'] = state; break;
+            case 'right': keys['d'] = keys['ArrowRight'] = state; break;
+            case 'fire': keys['fire'] = state; break;
+        }
+    }
+
+    document.querySelectorAll('.dir-controls .control-button').forEach(button => {
+        const action = button.getAttribute('data-action');
+        ['mousedown', 'touchstart'].forEach(event => {
+            button.addEventListener(event, (e) => {
+                e.preventDefault(); if (!isGameOver) setKey(action, true);
+            });
+        });
+        ['mouseup', 'touchend', 'mouseleave'].forEach(event => {
+            button.addEventListener(event, (e) => {
+                e.preventDefault(); setKey(action, false);
+            });
+        });
+    });
+
+    const fireButton = document.getElementById('fire-button');
+    ['mousedown', 'touchstart'].forEach(event => {
+        fireButton.addEventListener(event, (e) => { e.preventDefault(); if (!isGameOver) setKey('fire', true); });
+    });
+    ['mouseup', 'touchend', 'mouseleave'].forEach(event => {
+        fireButton.addEventListener(event, (e) => { e.preventDefault(); setKey('fire', false); });
+    });
+
+
+    // --- Initialization ---
+
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+    setupFirebase();
+    
+    const startButton = document.getElementById('start-button');
+    startButton.addEventListener('click', startGame); 
+    
+    const ttsButton = document.getElementById('tts-button');
+    ttsButton.addEventListener('click', playTTS);
+
+
+    overlayTitle.textContent = "COSMIC ASSAULT";
+    overlayScore.textContent = "Defend your sector from space rocks!";
+    document.getElementById('score-commentary').textContent = "Waiting for pilot...";
+    startButton.textContent = "START GAME";
+    overlay.style.display = 'flex';
+
+</script>
