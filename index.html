@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Trons Games</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
@@ -29,7 +29,7 @@
             justify-content: space-between;
             z-index: 1000;
             flex-shrink: 0;
-            height: 50px;
+            height: 54px;
         }
 
         .nav-btn {
@@ -39,7 +39,7 @@
             font-weight: bold;
             cursor: pointer;
             user-select: none;
-            font-size: 0.9rem;
+            font-size: 0.85rem;
         }
 
         .nav-btn.active {
@@ -56,17 +56,18 @@
             position: relative;
             display: flex;
             width: 100%;
-            height: calc(100vh - 50px);
+            height: calc(100vh - 54px);
             overflow: hidden;
         }
 
+        /* Fixed container to prevent button cutoff */
         .game-container {
             width: 100%;
             height: 100%;
             display: flex;
             flex-direction: column;
             align-items: center;
-            justify-content: center;
+            justify-content: space-between; /* Space out title, game, and controls */
             padding: 1rem;
             overflow-y: auto;
             position: relative;
@@ -78,26 +79,26 @@
             border: none;
         }
 
-        /* Cootie Catcher UI - Scaled for better fit */
+        /* Cootie Catcher UI - Scaled down for mobile safety */
         .scene { 
             perspective: 1000px; 
-            width: 240px; 
-            height: 240px; 
+            width: 200px; 
+            height: 200px; 
             position: relative;
             flex-shrink: 0;
-            margin: 0.5rem 0;
+            margin: 1rem 0;
         }
         .catcher { width: 100%; height: 100%; position: relative; transform-style: preserve-3d; transition: transform 0.5s ease; }
         .flap {
-            position: absolute; width: 120px; height: 120px; background: #1e293b; border: 2px solid #334155;
+            position: absolute; width: 100px; height: 100px; background: #1e293b; border: 2px solid #334155;
             transform-origin: center; display: flex; align-items: center; justify-content: center;
             cursor: pointer; transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), background 0.3s;
             user-select: none; box-shadow: inset 0 0 15px rgba(0,0,0,0.3);
         }
         .top-left { top: 0; left: 0; border-radius: 10px 0 0 0; }
-        .top-right { top: 0; left: 120px; border-radius: 0 10px 0 0; }
-        .bottom-left { top: 120px; left: 0; border-radius: 0 0 0 10px; }
-        .bottom-right { top: 120px; left: 120px; border-radius: 0 0 10px 0; }
+        .top-right { top: 0; left: 100px; border-radius: 0 10px 0 0; }
+        .bottom-left { top: 100px; left: 0; border-radius: 0 0 0 10px; }
+        .bottom-right { top: 100px; left: 100px; border-radius: 0 0 10px 0; }
         
         .catcher.open-h .top-left { transform: rotateY(-40deg) translateX(-10px); }
         .catcher.open-h .top-right { transform: rotateY(40deg) translateX(10px); }
@@ -109,29 +110,28 @@
         .catcher.open-v .bottom-right { transform: rotateX(-40deg) translateY(10px); }
 
         .modal-overlay {
-            display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7);
-            backdrop-filter: blur(4px); z-index: 2000; align-items: center; justify-content: center;
+            display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85);
+            backdrop-filter: blur(6px); z-index: 2000; align-items: center; justify-content: center;
         }
         .modal-content {
             background: #1e293b; padding: 1.5rem; border-radius: 1.5rem; max-width: 95%;
-            width: 500px; border: 2px solid #334155; max-height: 85vh; overflow-y: auto;
+            width: 480px; border: 2px solid #334155; max-height: 90vh; overflow-y: auto;
         }
 
         .hidden-fortune {
-            display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-            background: #1e293b; padding: 1.5rem; border-radius: 1rem; z-index: 100; max-width: 90%;
-            width: 350px; border: 4px dashed #818cf8; text-align: center;
-            max-height: 90%; overflow-y: auto;
-            box-shadow: 0 0 50px rgba(0,0,0,0.8);
+            background: #1e293b; padding: 1.5rem; border-radius: 1.5rem; 
+            max-width: 90%; width: 320px; border: 4px dashed #818cf8; text-align: center;
+            box-shadow: 0 0 80px rgba(0,0,0,1);
         }
         .dot-pulse { animation: dotPulse 1.5s infinite linear; }
         @keyframes dotPulse { 0% { opacity: 0.2; } 50% { opacity: 1; } 100% { opacity: 0.2; } }
-        .hidden { display: none !important; }
-
-        /* Custom Scrollbar */
-        ::-webkit-scrollbar { width: 6px; }
-        ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 10px; }
+        
+        .save-indicator {
+            position: fixed; bottom: 1rem; left: 50%; transform: translateX(-50%);
+            background: #22c55e; color: white; padding: 0.5rem 1rem; border-radius: 99px;
+            font-size: 0.75rem; font-weight: bold; opacity: 0; transition: opacity 0.3s;
+            z-index: 3000; pointer-events: none;
+        }
     </style>
 </head>
 <body>
@@ -141,21 +141,23 @@
             <span class="text-lg font-bold text-indigo-400 mr-2 hidden sm:inline">Trons Games</span>
             <div id="nav-tabs" class="flex gap-1"></div>
         </div>
-        <div id="user-status" class="text-[10px] text-slate-500 uppercase tracking-tighter">Initializing...</div>
+        <div id="status-tag" class="text-[10px] text-slate-500 bg-slate-800 px-2 py-0.5 rounded uppercase font-bold tracking-tighter">Local Storage</div>
     </nav>
 
     <div id="game-viewport" class="game-viewport"></div>
 
+    <div id="save-msg" class="save-indicator">Saved Locally! ✨</div>
+
     <!-- Customization Modal -->
     <div id="customize-modal" class="modal-overlay">
         <div class="modal-content">
-            <h2 class="text-xl font-bold text-indigo-400 mb-4">Customize Game</h2>
+            <h2 class="text-xl font-bold text-indigo-400 mb-4">Game Settings</h2>
             
             <div class="mb-6">
                 <label class="block text-xs font-bold uppercase text-slate-400 mb-3 tracking-widest">Fortune Samples</label>
                 <div id="fortune-presets" class="grid grid-cols-2 gap-2 mb-4"></div>
                 
-                <label class="block text-xs font-bold uppercase text-slate-400 mb-2 tracking-widest">Edit Fortunes</label>
+                <label class="block text-xs font-bold uppercase text-slate-400 mb-2 tracking-widest">Edit Results (8 Slots)</label>
                 <div id="fortune-inputs" class="grid grid-cols-1 gap-2 max-h-40 overflow-y-auto pr-2 mb-4 border-y border-slate-700 py-2"></div>
             </div>
 
@@ -171,67 +173,71 @@
             </div>
 
             <div class="flex gap-2">
-                <button onclick="saveSettingsToCloud()" id="save-btn" class="flex-grow bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-2 px-4 rounded-lg transition text-sm">Save Everything ✨</button>
+                <button onclick="saveAllSettings()" class="flex-grow bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-2 px-4 rounded-lg transition text-sm">Save & Close ✨</button>
                 <button onclick="toggleCustomize(false)" class="bg-slate-700 hover:bg-slate-600 text-slate-200 py-2 px-4 rounded-lg transition text-sm">Cancel</button>
             </div>
         </div>
     </div>
 
-    <!-- Cootie Catcher Template -->
     <template id="cootie-template">
         <div class="game-container">
-            <div class="text-center">
+            <div class="text-center pt-2">
                 <h1 class="text-xl font-bold text-indigo-400">Cootie Catcher</h1>
-                <p id="instruction" class="text-xs text-indigo-300 font-medium">Pick a Color!</p>
+                <p id="instruction" class="text-xs text-indigo-300 font-medium h-4">Pick a Color!</p>
             </div>
             
             <div class="scene">
                 <div id="catcher" class="catcher">
-                    <div class="flap top-left" onclick="handleChoice('tl')"><div id="content-tl" class="w-full h-full flex items-center justify-center font-bold text-sm text-center p-1"></div></div>
-                    <div class="flap top-right" onclick="handleChoice('tr')"><div id="content-tr" class="w-full h-full flex items-center justify-center font-bold text-sm text-center p-1"></div></div>
-                    <div class="flap bottom-left" onclick="handleChoice('bl')"><div id="content-bl" class="w-full h-full flex items-center justify-center font-bold text-sm text-center p-1"></div></div>
-                    <div class="flap bottom-right" onclick="handleChoice('br')"><div id="content-br" class="w-full h-full flex items-center justify-center font-bold text-sm text-center p-1"></div></div>
+                    <div class="flap top-left" onclick="handleChoice('tl')"><div id="content-tl" class="w-full h-full flex items-center justify-center font-bold text-xs text-center p-1 uppercase"></div></div>
+                    <div class="flap top-right" onclick="handleChoice('tr')"><div id="content-tr" class="w-full h-full flex items-center justify-center font-bold text-xs text-center p-1 uppercase"></div></div>
+                    <div class="flap bottom-left" onclick="handleChoice('bl')"><div id="content-bl" class="w-full h-full flex items-center justify-center font-bold text-xs text-center p-1 uppercase"></div></div>
+                    <div class="flap bottom-right" onclick="handleChoice('br')"><div id="content-br" class="w-full h-full flex items-center justify-center font-bold text-xs text-center p-1 uppercase"></div></div>
                 </div>
             </div>
 
-            <div id="fortune-modal" class="hidden-fortune shadow-2xl">
-                <h2 class="text-lg font-bold text-indigo-300 mb-1">Your Fortune:</h2>
-                <div id="loading-spinner" class="mb-3 hidden">
-                    <div class="flex justify-center gap-2">
-                        <div class="w-2 h-2 bg-indigo-400 rounded-full dot-pulse"></div>
-                        <div class="w-2 h-2 bg-indigo-400 rounded-full dot-pulse" style="animation-delay: 0.2s"></div>
-                        <div class="w-2 h-2 bg-indigo-400 rounded-full dot-pulse" style="animation-delay: 0.4s"></div>
+            <!-- Result Overlay for background clicking -->
+            <div id="fortune-overlay" class="modal-overlay" onclick="resetGame()">
+                <div id="fortune-modal" class="hidden-fortune" onclick="event.stopPropagation()">
+                    <h2 class="text-lg font-bold text-indigo-300 mb-1">Result:</h2>
+                    <div id="loading-spinner" class="mb-3 hidden">
+                        <div class="flex justify-center gap-2">
+                            <div class="w-2 h-2 bg-indigo-400 rounded-full dot-pulse"></div>
+                            <div class="w-2 h-2 bg-indigo-400 rounded-full dot-pulse" style="animation-delay: 0.2s"></div>
+                            <div class="w-2 h-2 bg-indigo-400 rounded-full dot-pulse" style="animation-delay: 0.4s"></div>
+                        </div>
                     </div>
-                </div>
-                <p id="fortune-text" class="text-base italic text-slate-100 mb-4"></p>
-                <div id="charm-container" class="hidden mb-4 flex flex-col items-center">
-                    <img id="charm-image" class="w-24 h-24 rounded-lg shadow-inner border-2 border-indigo-500/30 mb-2" src="" alt="Charm">
-                </div>
-                <div class="flex flex-col gap-2">
-                    <div class="flex gap-2">
-                        <button id="tts-btn" onclick="speakFortune()" class="flex-1 bg-indigo-900/50 text-indigo-200 border border-indigo-500/50 px-2 py-1.5 rounded-full text-[10px] hidden">Hear ✨</button>
-                        <button id="image-btn" onclick="generateCharm()" class="flex-1 bg-indigo-900/50 text-indigo-200 border border-indigo-500/50 px-2 py-1.5 rounded-full text-[10px] hidden">Charm ✨</button>
+                    <p id="fortune-text" class="text-base italic text-slate-100 mb-4 leading-relaxed"></p>
+                    <div id="charm-container" class="hidden mb-4 flex flex-col items-center">
+                        <img id="charm-image" class="w-20 h-20 rounded-lg shadow-xl border-2 border-indigo-500/30 mb-2" src="" alt="Charm">
                     </div>
-                    <button onclick="resetGame()" class="w-full bg-indigo-600 text-white px-4 py-2 rounded-full hover:bg-indigo-500 transition text-sm">Play Again</button>
+                    <div class="flex flex-col gap-2">
+                        <div class="flex gap-2">
+                            <button id="tts-btn" onclick="speakFortune()" class="flex-1 bg-indigo-900/50 text-indigo-200 border border-indigo-500/50 px-2 py-2 rounded-full text-[10px] hidden font-bold">Hear ✨</button>
+                            <button id="image-btn" onclick="generateCharm()" class="flex-1 bg-indigo-900/50 text-indigo-200 border border-indigo-500/50 px-2 py-2 rounded-full text-[10px] hidden font-bold">Charm ✨</button>
+                        </div>
+                        <button onclick="resetGame()" class="w-full bg-indigo-600 text-white px-4 py-2 rounded-full hover:bg-indigo-500 transition text-sm font-bold shadow-lg">Play Again</button>
+                    </div>
                 </div>
             </div>
 
-            <div class="h-6 mb-1"><div id="counter" class="text-xl font-bold text-indigo-400"></div></div>
+            <div class="h-6 flex items-center justify-center">
+                <div id="counter" class="text-xl font-bold text-indigo-400"></div>
+            </div>
             
-            <div class="flex flex-col gap-2 w-full max-w-[240px] mb-4">
-                <button onclick="toggleCustomize(true)" class="flex items-center justify-center gap-2 bg-indigo-900/40 text-indigo-200 border border-indigo-500/30 px-3 py-1.5 rounded-full hover:bg-indigo-800 transition text-[10px]">
-                    Customize Game 🎨
+            <div class="flex flex-col gap-1.5 w-full max-w-[240px] mt-4 mb-6">
+                <button onclick="toggleCustomize(true)" class="bg-indigo-900/40 text-indigo-200 border border-indigo-500/30 px-3 py-2 rounded-full hover:bg-indigo-800 transition text-[11px] font-bold">
+                    Customize Results & Theme 🎨
                 </button>
-                <div class="flex items-center justify-between bg-slate-800 px-3 py-1 rounded-full shadow-md border border-slate-700">
-                    <span class="text-indigo-300 font-medium text-[10px]">AI Mode</span>
+                <div class="flex items-center justify-between bg-slate-800 px-3 py-1.5 rounded-full border border-slate-700">
+                    <span class="text-indigo-300 font-medium text-[10px] uppercase tracking-wider">AI Magic Mode</span>
                     <label class="relative inline-flex items-center cursor-pointer">
                         <input type="checkbox" id="gemini-toggle" class="sr-only peer" checked>
-                        <div class="w-7 h-3.5 bg-slate-600 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-2.5 after:w-2.5 after:transition-all peer-checked:bg-indigo-500"></div>
+                        <div class="w-7 h-4 bg-slate-600 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-indigo-500"></div>
                     </label>
                 </div>
-                <div id="vibe-selector" class="flex items-center justify-between bg-slate-800 px-3 py-1 rounded-full shadow-md border border-slate-700">
-                    <span class="text-indigo-300 font-medium text-[10px]">AI Vibe ✨</span>
-                    <select id="fortune-vibe" class="bg-transparent text-indigo-200 text-[10px] focus:outline-none">
+                <div class="flex items-center justify-between bg-slate-800 px-3 py-1.5 rounded-full border border-slate-700">
+                    <span class="text-indigo-300 font-medium text-[10px] uppercase tracking-wider">AI Style ✨</span>
+                    <select id="fortune-vibe" class="bg-transparent text-indigo-200 text-[10px] focus:outline-none font-bold">
                         <option value="heroic">Heroic</option>
                         <option value="spooky">Spooky</option>
                         <option value="funny">Funny</option>
@@ -242,28 +248,10 @@
         </div>
     </template>
 
-    <script type="module">
-        import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js';
-        import { getAuth, signInWithCustomToken, signInAnonymously, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js';
-        import { getFirestore, doc, setDoc, getDoc } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js';
-
-        // Safe Firebase Config check for GitHub Pages
-        let db, auth, user;
-        let isLocalMode = false;
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+    <script>
+        // CORE SETTINGS
+        const STORAGE_KEY = 'trons_games_v1';
         const apiKey = ""; 
-
-        try {
-            if (typeof __firebase_config === 'undefined') throw new Error("No config");
-            const firebaseConfig = JSON.parse(__firebase_config);
-            const app = initializeApp(firebaseConfig);
-            auth = getAuth(app);
-            db = getFirestore(app);
-        } catch (e) {
-            isLocalMode = true;
-            document.getElementById('user-status').innerText = "Local Mode (No Sync)";
-        }
-
         const TEXT_MODEL = "gemini-2.5-flash-preview-09-2025";
         const TTS_MODEL = "gemini-2.5-flash-preview-tts";
         const IMAGE_MODEL = "imagen-4.0-generate-001";
@@ -271,13 +259,12 @@
         const themePresets = [
             { id: 'classic', name: 'Classic', colors: ['#991b1b', '#1e3a8a', '#064e3b', '#713f12'] },
             { id: 'cyber', name: 'Cyber', colors: ['#ec4899', '#06b6d4', '#84cc16', '#a855f7'] },
-            { id: 'nature', name: 'Nature', colors: ['#14532d', '#1e3a8a', '#365314', '#164e63'] }
+            { id: 'sunset', name: 'Sunset', colors: ['#ea580c', '#be123c', '#ca8a04', '#7e22ce'] }
         ];
 
         const fortuneSamples = [
             { name: 'Standard', list: ["Lucky penny day!", "Adventure awaits!", "New friend soon!", "Surprise coming!", "Kindness rewarded!", "Secret admirer!", "Success ahead!", "Famous explorer!"] },
-            { name: 'School Jokes', list: ["Why math book sad? Too many problems.", "Plate to plate? Dinner is on me!", "How to make tissue dance? Boogey!", "Cat color? Purrr-ple.", "Pencil vacation? Pencil-vania.", "Trust atoms? They make up everything.", "Falls but never hurt? Snow.", "Teacher shades? Bright students!"] },
-            { name: 'Encouraging', list: ["You are smart!", "You can do it!", "Believe in yourself.", "Make it great.", "You are helpful.", "Try your best.", "Mistakes help us learn.", "You are a friend."] }
+            { name: 'Jokes', list: ["Math book sad? Too many problems.", "Plate to plate? Dinner is on me!", "Tissue dance? Boogey!", "Cat color? Purrr-ple.", "Pencil vacation? Pencil-vania.", "Trust atoms? They make up everything.", "Falls but never hurt? Snow.", "Teacher shades? Bright students!"] }
         ];
 
         let activeTheme = [...themePresets[0].colors];
@@ -288,13 +275,52 @@
             { id: 'cootie', title: 'Cootie Catcher', type: 'internal' }
         ];
 
+        // LOCAL STORAGE HANDLERS
+        function loadSettings() {
+            const saved = localStorage.getItem(STORAGE_KEY);
+            if (saved) {
+                const data = JSON.parse(saved);
+                activeTheme = data.theme || activeTheme;
+                activeFortunes = data.fortunes || activeFortunes;
+            }
+        }
+
+        function saveAllSettings() {
+            activeTheme = [
+                document.getElementById('color-tl').value,
+                document.getElementById('color-tr').value,
+                document.getElementById('color-bl').value,
+                document.getElementById('color-br').value
+            ];
+            activeFortunes = [];
+            for (let i = 0; i < 8; i++) {
+                activeFortunes.push(document.getElementById(`fortune-input-${i}`).value || `Result ${i+1}`);
+            }
+
+            localStorage.setItem(STORAGE_KEY, JSON.stringify({
+                theme: activeTheme,
+                fortunes: activeFortunes
+            }));
+
+            // Feedback toast
+            const toast = document.getElementById('save-msg');
+            toast.style.opacity = '1';
+            setTimeout(() => toast.style.opacity = '0', 2000);
+
+            window.initColors();
+            window.toggleCustomize(false);
+        }
+
+        // APP INITIALIZATION
         window.setupApp = function() {
+            loadSettings();
             const tabsContainer = document.getElementById('nav-tabs');
             const viewport = document.getElementById('game-viewport');
             const themeContainer = document.getElementById('theme-presets');
             const sampleContainer = document.getElementById('fortune-presets');
             const inputContainer = document.getElementById('fortune-inputs');
 
+            // Setup Customization Modal UI
             themePresets.forEach(p => {
                 const btn = document.createElement('button');
                 btn.className = "flex flex-col items-center gap-1 bg-slate-800 p-1.5 rounded border border-slate-700 hover:border-indigo-500 transition text-[10px]";
@@ -315,10 +341,11 @@
                 const row = document.createElement('div');
                 row.className = "flex items-center gap-2";
                 row.innerHTML = `<span class="text-[10px] text-slate-500 w-4">${i+1}</span>
-                    <input type="text" id="fortune-input-${i}" class="flex-grow bg-slate-900 border border-slate-700 rounded px-2 py-1 text-xs focus:border-indigo-500 outline-none" placeholder="Fortune ${i+1}">`;
+                    <input type="text" id="fortune-input-${i}" class="flex-grow bg-slate-900 border border-slate-700 rounded px-2 py-1 text-xs focus:border-indigo-500 outline-none">`;
                 inputContainer.appendChild(row);
             }
 
+            // Setup Navigation and Content
             games.forEach((game, index) => {
                 const tab = document.createElement('div');
                 tab.id = `tab-${game.id}`;
@@ -329,7 +356,7 @@
 
                 const section = document.createElement('div');
                 section.id = `section-${game.id}`;
-                section.className = `game-container ${index === 0 ? '' : 'hidden'}`;
+                section.className = `w-full h-full ${index === 0 ? '' : 'hidden'}`;
                 
                 if (game.type === 'iframe') {
                     const ifr = document.createElement('iframe');
@@ -346,8 +373,10 @@
 
         window.switchTab = function(gameId) {
             games.forEach(g => {
-                document.getElementById(`section-${g.id}`).classList.toggle('hidden', g.id !== gameId);
-                document.getElementById(`tab-${g.id}`).classList.toggle('active', g.id === gameId);
+                const s = document.getElementById(`section-${g.id}`);
+                const t = document.getElementById(`tab-${g.id}`);
+                if (s) s.classList.toggle('hidden', g.id !== gameId);
+                if (t) t.classList.toggle('active', g.id === gameId);
             });
             if (gameId === 'cootie') window.initColors();
         }
@@ -360,13 +389,12 @@
                 document.getElementById('color-bl').value = activeTheme[2];
                 document.getElementById('color-br').value = activeTheme[3];
                 for (let i = 0; i < 8; i++) {
-                    document.getElementById(`fortune-input-${i}`).value = activeFortunes[i];
+                    document.getElementById(`fortune-input-${i}`).value = activeFortunes[i] || "";
                 }
             }
         }
 
         window.applyTheme = function(colors) {
-            activeTheme = [...colors];
             document.getElementById('color-tl').value = colors[0];
             document.getElementById('color-tr').value = colors[1];
             document.getElementById('color-bl').value = colors[2];
@@ -374,48 +402,12 @@
         }
 
         window.applyFortuneSample = function(list) {
-            activeFortunes = [...list];
             for (let i = 0; i < 8; i++) {
-                document.getElementById(`fortune-input-${i}`).value = activeFortunes[i];
+                document.getElementById(`fortune-input-${i}`).value = list[i];
             }
         }
 
-        window.saveSettingsToCloud = async function() {
-            activeTheme = [
-                document.getElementById('color-tl').value,
-                document.getElementById('color-tr').value,
-                document.getElementById('color-bl').value,
-                document.getElementById('color-br').value
-            ];
-            activeFortunes = [];
-            for (let i = 0; i < 8; i++) {
-                activeFortunes.push(document.getElementById(`fortune-input-${i}`).value || `Fortune ${i+1}`);
-            }
-
-            if (isLocalMode || !user) {
-                window.initColors();
-                window.toggleCustomize(false);
-                return;
-            }
-
-            const saveBtn = document.getElementById('save-btn');
-            saveBtn.innerText = "Saving...";
-            saveBtn.disabled = true;
-
-            try {
-                const settingsDoc = doc(db, 'artifacts', appId, 'users', user.uid, 'settings', 'cootie');
-                await setDoc(settingsDoc, { theme: activeTheme, fortunes: activeFortunes, updatedAt: Date.now() });
-                window.initColors();
-                window.toggleCustomize(false);
-            } catch (err) {
-                console.error("Save error:", err);
-            } finally {
-                saveBtn.innerText = "Save Everything ✨";
-                saveBtn.disabled = false;
-            }
-        }
-
-        // --- Game Logic ---
+        // COOTIE LOGIC
         let gameState = 'COLORS';
         let isAnimating = false;
         let selections = { color: '', num1: null, num2: null };
@@ -431,9 +423,11 @@
             const labels = ['RED', 'BLUE', 'GREEN', 'YELLOW'];
             ['tl', 'tr', 'bl', 'br'].forEach((id, i) => {
                 const el = section.querySelector(`#content-${id}`);
-                el.innerText = labels[i];
-                el.parentElement.style.backgroundColor = activeTheme[i];
-                el.style.color = 'white';
+                if (el) {
+                    el.innerText = labels[i];
+                    el.parentElement.style.backgroundColor = activeTheme[i];
+                    el.style.color = 'white';
+                }
             });
         }
 
@@ -449,9 +443,9 @@
                 window.showNumbers(1);
             } else if (gameState === 'NUMBER_1') {
                 selections.num1 = choice;
-                await window.animateCatcher(parseInt(choice));
+                await window.animateCatcher(parseInt(choice) || 1);
                 gameState = 'NUMBER_2';
-                section.querySelector('#instruction').innerText = "Pick one last Number!";
+                section.querySelector('#instruction').innerText = "Pick the last Number!";
                 window.showNumbers(2);
             } else if (gameState === 'NUMBER_2') {
                 selections.num2 = choice;
@@ -464,9 +458,11 @@
             const section = document.getElementById('section-cootie');
             ['tl', 'tr', 'bl', 'br'].forEach((id, i) => {
                 const el = section.querySelector(`#content-${id}`);
-                el.innerText = nums[i];
-                el.style.color = '#a5b4fc';
-                el.parentElement.style.backgroundColor = '#1e293b';
+                if (el) {
+                    el.innerText = nums[i];
+                    el.style.color = '#a5b4fc';
+                    el.parentElement.style.backgroundColor = '#1e293b';
+                }
             });
         }
 
@@ -482,4 +478,113 @@
                 cat.className = 'catcher';
                 await new Promise(r => setTimeout(r, 100));
             }
-            countEl.innerText =
+            countEl.innerText = "";
+            isAnimating = false;
+        }
+
+        window.revealFortune = async function() {
+            gameState = 'REVEAL';
+            const section = document.getElementById('section-cootie');
+            section.querySelector('#instruction').innerText = "Revealed!";
+            section.querySelector('#fortune-overlay').style.display = 'flex';
+            const fText = section.querySelector('#fortune-text');
+            fText.innerText = "";
+            
+            section.querySelector('#charm-container').classList.add('hidden');
+            section.querySelector('#tts-btn').classList.add('hidden');
+            section.querySelector('#image-btn').classList.add('hidden');
+
+            if (section.querySelector('#gemini-toggle').checked && apiKey) {
+                section.querySelector('#loading-spinner').classList.remove('hidden');
+                const vibe = section.querySelector('#fortune-vibe').value;
+                currentFortune = await window.callGemini(vibe);
+                section.querySelector('#loading-spinner').classList.add('hidden');
+                fText.innerText = currentFortune;
+                section.querySelector('#tts-btn').classList.remove('hidden');
+                section.querySelector('#image-btn').classList.remove('hidden');
+            } else {
+                currentFortune = activeFortunes[Math.floor(Math.random() * activeFortunes.length)];
+                fText.innerText = currentFortune;
+            }
+        }
+
+        window.callGemini = async function(vibe) {
+            const systemPrompt = `Whimsical magic teller. One short whimsical sentence. Style: ${vibe}. No markdown.`;
+            const userQuery = `Choices: Color ${selections.color}, Nums ${selections.num1}, ${selections.num2}. We like these: ${activeFortunes.slice(0,3).join(", ")}.`;
+            const fetchFn = () => fetch(`https://generativelanguage.googleapis.com/v1beta/models/${TEXT_MODEL}:generateContent?key=${apiKey}`, {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ contents: [{ parts: [{ text: userQuery }] }], systemInstruction: { parts: [{ text: systemPrompt }] } })
+            });
+            const result = await retryRequest(fetchFn);
+            return result?.candidates?.[0]?.content?.parts?.[0]?.text || "Joy is coming!";
+        }
+
+        async function retryRequest(fn, retries = 5) {
+            for (let i = 0; i <= retries; i++) {
+                try {
+                    const res = await fn();
+                    if (!res.ok) throw new Error();
+                    return await res.json();
+                } catch (e) {
+                    if (i === retries) return null;
+                    await new Promise(r => setTimeout(r, Math.pow(2, i) * 1000));
+                }
+            }
+        }
+
+        window.speakFortune = async function() {
+            const section = document.getElementById('section-cootie');
+            const btn = section.querySelector('#tts-btn');
+            btn.disabled = true; btn.innerText = "...";
+            try {
+                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${TTS_MODEL}:generateContent?key=${apiKey}`, {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        contents: [{ parts: [{ text: `Say magically: ${currentFortune}` }] }],
+                        generationConfig: { responseModalities: ["AUDIO"], speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: "Aoede" } } } }
+                    })
+                });
+                const result = await response.json();
+                window.playAudio(result.candidates[0].content.parts[0].inlineData.data);
+            } catch (e) {} finally {
+                btn.disabled = false; btn.innerText = "Hear ✨";
+            }
+        }
+
+        window.generateCharm = async function() {
+            const section = document.getElementById('section-cootie');
+            const btn = section.querySelector('#image-btn');
+            btn.innerText = "..."; btn.disabled = true;
+            try {
+                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${IMAGE_MODEL}:predict?key=${apiKey}`, {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ instances: { prompt: `Magic charm: ${currentFortune}. 3D glowing sticker icon.` }, parameters: { sampleCount: 1 } })
+                });
+                const result = await response.json();
+                section.querySelector('#charm-image').src = `data:image/png;base64,${result.predictions[0].bytesBase64Encoded}`;
+                section.querySelector('#charm-container').classList.remove('hidden');
+                btn.classList.add('hidden');
+            } catch (e) {} finally {
+                btn.disabled = false; btn.innerText = "Charm ✨";
+            }
+        }
+
+        window.playAudio = function(base64) {
+            const binary = atob(base64);
+            const bytes = new Uint8Array(binary.length);
+            for(let i=0; i<binary.length; i++) bytes[i] = binary.charCodeAt(i);
+            const blob = new Blob([bytes], {type:'audio/wav'});
+            new Audio(URL.createObjectURL(blob)).play();
+        }
+
+        window.resetGame = function() {
+            const section = document.getElementById('section-cootie');
+            section.querySelector('#fortune-overlay').style.display = 'none';
+            section.querySelector('#catcher').className = 'catcher';
+            window.initColors();
+        }
+
+        window.onload = window.setupApp;
+    </script>
+</body>
+</html>
