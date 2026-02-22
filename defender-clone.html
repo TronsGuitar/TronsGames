@@ -122,7 +122,7 @@
             if(enemies.length<8) enemies.push(new Enemy());
             document.getElementById('s').innerText=score; document.getElementById('b').innerText=bombs; document.getElementById('l').innerText=lives;
         }
-        ctx.fillStyle='#000'; ctx.fillRect(0,0,VW,VH);
+        ctx.fillStyle='#000'; ctx.fillRect(0,0,VIEW_WIDTH,VIEW_HEIGHT);
         if(player) {
             stars.forEach(s=>{ let sx=s.x-camX; if(sx<-WORLD_WIDTH/2)sx+=WORLD_WIDTH; if(sx>WORLD_WIDTH/2)sx-=WORLD_WIDTH; ctx.fillStyle=s.c; ctx.fillRect(sx+VIEW_WIDTH/2,s.y,1,1); });
             ctx.strokeStyle='#a52a2a'; ctx.beginPath(); terrain.forEach((p,i)=>{
