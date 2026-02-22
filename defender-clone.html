@@ -3,162 +3,155 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Defender Clone</title>
+    <title>Defender Standalone</title>
     <style>
-        body { margin: 0; background: #000; color: #fff; font-family: monospace; overflow: hidden; touch-action: none; user-select: none; }
-        canvas { display: block; width: 100vw; height: 56.25vw; max-height: 100vh; max-width: 177.78vh; margin: auto; background: #000; border: 1px solid #333; }
-        #ui { position: absolute; top: 10px; left: 10px; right: 10px; display: flex; justify-content: space-between; font-size: clamp(14px, 4vw, 18px); pointer-events: none; text-shadow: 2px 2px #000; }
-        #controls { position: absolute; bottom: 20px; left: 0; width: 100%; display: flex; justify-content: space-between; padding: 0 20px; box-sizing: border-box; }
-        .btn { width: 60px; height: 60px; border: 2px solid #0ff; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: rgba(0,255,255,0.1); color: #0ff; font-weight: bold; font-size: 10px; cursor: pointer; }
-        .joystick { width: 120px; height: 120px; border-radius: 50%; border: 1px solid #333; background: rgba(255,255,255,0.05); position: relative; }
-        #knob { width: 40px; height: 40px; background: #0ff; border-radius: 50%; position: absolute; left: 40px; top: 40px; box-shadow: 0 0 10px #0ff; pointer-events: none; }
-        #start-scr { position: absolute; inset: 0; background: rgba(0,0,0,0.85); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 100; text-align: center; }
-        h1 { color: #0ff; letter-spacing: 5px; margin: 0; font-size: 40px; }
-        .play-btn { border: 2px solid #0ff; color: #0ff; padding: 10px 30px; margin-top: 20px; cursor: pointer; font-size: 20px; }
+        body {
+            margin: 0; padding: 0; background-color: #000; color: #fff;
+            font-family: 'Courier New', Courier, monospace; overflow: hidden;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            height: 100vh; user-select: none; touch-action: none;
+        }
+        #game-container { position: relative; width: 100%; max-width: 1000px; aspect-ratio: 16 / 9; border: 1px solid #333; }
+        canvas { display: block; background: black; width: 100%; height: 100%; }
+        #ui-overlay { position: absolute; top: 10px; left: 10px; right: 10px; pointer-events: none; display: flex; justify-content: space-between; font-size: clamp(14px, 4vw, 20px); text-shadow: 2px 2px #000; z-index: 5; }
+        #start-screen { position: absolute; inset: 0; background: rgba(0,0,0,0.9); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 20; text-align: center; }
+        h1 { color: #0ff; font-size: clamp(32px, 8vw, 64px); margin: 10px; letter-spacing: 5px; }
+        .btn { background: transparent; color: #0ff; border: 2px solid #0ff; padding: 15px 40px; font-size: 24px; cursor: pointer; margin-top: 20px; }
+        #controls-overlay { position: absolute; bottom: 0; left: 0; width: 100%; height: 100%; pointer-events: none; display: flex; justify-content: space-between; align-items: flex-end; padding: 20px; box-sizing: border-box; z-index: 10; }
+        .touch-zone { pointer-events: auto; display: flex; gap: 15px; }
+        .joystick-area { width: 120px; height: 120px; background: rgba(255, 255, 255, 0.05); border: 2px solid rgba(0, 255, 255, 0.2); border-radius: 50%; display: flex; align-items: center; justify-content: center; position: relative; }
+        .joystick-knob { width: 40px; height: 40px; background: #0ff; border-radius: 50%; position: absolute; }
+        .action-btn { width: 60px; height: 60px; border-radius: 50%; border: 2px solid #0ff; background: rgba(0, 255, 255, 0.1); color: #0ff; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 10px; cursor: pointer; }
+        .hidden { display: none !important; }
     </style>
 </head>
 <body>
-    <div id="start-scr">
-        <h1>DEFENDER</h1>
-        <p>Protect the humanoids.</p>
-        <div class="play-btn" onclick="startGame()">ENGAGE</div>
-    </div>
-    <div id="ui">
-        <div>SCORE: <span id="s">0</span></div>
-        <div>BOMBS: <span id="b">3</span></div>
-        <div>SHIPS: <span id="l">3</span></div>
-    </div>
-    <canvas id="c"></canvas>
-    <div id="controls">
-        <div class="joystick" id="jz"><div id="knob"></div></div>
-        <div style="display:flex; gap:10px; align-items: flex-end;">
-            <div class="btn" id="bw">WARP</div>
-            <div class="btn" id="bb">BOMB</div>
-            <div class="btn" id="bf" style="width:80px; height:80px; font-size:16px;">FIRE</div>
+    <div id="game-container">
+        <div id="ui-overlay">
+            <div>SCORE: <span id="score-val">0</span></div>
+            <div>BOMBS: <span id="bombs-val">3</span></div>
+            <div>SHIPS: <span id="ships-val">3</span></div>
+        </div>
+        <div id="start-screen">
+            <h1>DEFENDER</h1>
+            <button class="btn" id="start-btn">ENGAGE</button>
+        </div>
+        <canvas id="gameCanvas"></canvas>
+        <div id="controls-overlay">
+            <div class="touch-zone"><div class="joystick-area" id="jz"><div class="joystick-knob" id="kn"></div></div></div>
+            <div class="touch-zone">
+                <div class="action-btn" id="bw">WARP</div>
+                <div class="action-btn" id="bb">BOMB</div>
+                <div class="action-btn" id="bf" style="width:80px; height:80px; font-size: 16px;">FIRE</div>
+            </div>
         </div>
     </div>
-
 <script>
-    const canvas = document.getElementById('c'), ctx = canvas.getContext('2d');
-    const WORLD_WIDTH = 5000, VIEW_WIDTH = 1000, VIEW_HEIGHT = 562, GROUND_LEVEL = 500;
-    canvas.width = VIEW_WIDTH; canvas.height = VIEW_HEIGHT;
+const canvas = document.getElementById('gameCanvas'), ctx = canvas.getContext('2d');
+const WORLD_WIDTH = 5000, VIEW_WIDTH = 1000, VIEW_HEIGHT = 562, GROUND_LEVEL = 500;
+canvas.width = VIEW_WIDTH; canvas.height = VIEW_HEIGHT;
 
-    let running = false, score = 0, lives = 3, bombs = 3, camX = 0;
-    let player = null, enemies = [], bullets = [], stars = [], terrain = [], humanoids = [];
-    let keys = {}, input = {jx: 0, jy: 0, f: false};
+let state = { running: false, score: 0, lives: 3, smartBombs: 3, camX: 0, player: null, enemies: [], bullets: [], humanoids: [], stars: [], terrain: [], keys: {}, input: {jx: 0, jy: 0, f: false} };
 
-    class Entity {
-        constructor(x, y, w, h, c) { this.x=x; this.y=y; this.w=w; this.h=h; this.c=c; this.vx=0; this.vy=0; this.dead=false; }
-        getSX() { 
-            let r = this.x - camX; 
-            if(r < -WORLD_WIDTH/2) r += WORLD_WIDTH; 
-            if(r > WORLD_WIDTH/2) r -= WORLD_WIDTH; 
-            return r + VIEW_WIDTH/2; 
-        }
-        update() { this.x += this.vx; this.y += this.vy; if(this.x<0) this.x+=WORLD_WIDTH; if(this.x>=WORLD_WIDTH) this.x-=WORLD_WIDTH; }
+class Entity {
+    constructor(x, y, w, h, color) { Object.assign(this, {x, y, w, h, color, vx:0, vy:0, dead:false}); }
+    getSX() { let r = this.x - state.camX; if (r < -WORLD_WIDTH / 2) r += WORLD_WIDTH; if (r > WORLD_WIDTH / 2) r -= WORLD_WIDTH; return r + VIEW_WIDTH / 2; }
+    update() { this.x += this.vx; this.y += this.vy; if (this.x < 0) this.x += WORLD_WIDTH; if (this.x >= WORLD_WIDTH) this.x -= WORLD_WIDTH; }
+}
+
+class Player extends Entity {
+    constructor() { super(WORLD_WIDTH / 2, VIEW_HEIGHT / 2, 35, 12, '#fff'); this.d = 1; this.cd = 0; }
+    update() {
+        if (state.keys['KeyW'] || state.keys['ArrowUp'] || state.input.jy < -0.1) this.vy -= 0.5;
+        if (state.keys['KeyS'] || state.keys['ArrowDown'] || state.input.jy > 0.1) this.vy += 0.5;
+        if (state.keys['KeyA'] || state.keys['ArrowLeft'] || state.input.jx < -0.1) { this.vx -= 0.5; this.d = -1; }
+        if (state.keys['KeyD'] || state.keys['ArrowRight'] || state.input.jx > 0.1) { this.vx += 0.5; this.d = 1; }
+        this.vx *= 0.95; this.vy *= 0.95; super.update();
+        if (this.y < 50) this.y = 50; if (this.y > GROUND_LEVEL - this.h) this.y = GROUND_LEVEL - this.h;
+        state.camX = this.x;
+        if (this.cd > 0) this.cd--;
+        if ((state.keys['Space'] || state.input.f) && this.cd === 0) { state.bullets.push(new Bullet(this.x + (this.d === 1 ? this.w : 0), this.y + 5, this.d)); this.cd = 12; }
     }
-
-    class Player extends Entity {
-        constructor() { super(WORLD_WIDTH/2, VIEW_HEIGHT/2, 35, 12, '#fff'); this.d=1; this.cd=0; }
-        update() {
-            if(keys['KeyW'] || keys['ArrowUp'] || input.jy < -0.1) this.vy -= 0.5;
-            if(keys['KeyS'] || keys['ArrowDown'] || input.jy > 0.1) this.vy += 0.5;
-            if(keys['KeyA'] || keys['ArrowLeft'] || input.jx < -0.1) { this.vx -= 0.5; this.d = -1; }
-            if(keys['KeyD'] || keys['ArrowRight'] || input.jx > 0.1) { this.vx += 0.5; this.d = 1; }
-            this.vx *= 0.95; this.vy *= 0.95; super.update();
-            if(this.y < 50) this.y = 50; if(this.y > GROUND_LEVEL-this.h) this.y = GROUND_LEVEL-this.h;
-            camX = this.x;
-            if(this.cd > 0) this.cd--;
-            if((keys['Space'] || input.f) && this.cd === 0) {
-                bullets.push(new Bullet(this.x + (this.d===1?this.w:0), this.y+5, this.d));
-                this.cd = 12;
-            }
-        }
-        draw() {
-            let sx = this.getSX(); ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.beginPath();
-            if(this.d===1) { ctx.moveTo(sx,this.y); ctx.lineTo(sx+30,this.y+6); ctx.lineTo(sx,this.y+12); ctx.lineTo(sx+5,this.y+6); }
-            else { ctx.moveTo(sx+30,this.y); ctx.lineTo(sx,this.y+6); ctx.lineTo(sx+30,this.y+12); ctx.lineTo(sx+25,this.y+6); }
-            ctx.stroke();
-        }
+    draw() {
+        let sx = this.getSX(); ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.beginPath();
+        if (this.d === 1) { ctx.moveTo(sx, this.y); ctx.lineTo(sx + 30, this.y + 6); ctx.lineTo(sx, this.y + 12); ctx.lineTo(sx + 5, this.y + 6); }
+        else { ctx.moveTo(sx + 30, this.y); ctx.lineTo(sx, this.y + 6); ctx.lineTo(sx + 30, this.y + 12); ctx.lineTo(sx + 25, this.y + 6); }
+        ctx.stroke();
     }
+}
 
-    class Bullet extends Entity {
-        constructor(x,y,d) { super(x,y,40,2,'#0ff'); this.vx=d*18; this.l=50; }
-        update() { super.update(); this.l--; if(this.l<=0) this.dead=true; }
-        draw() { ctx.fillStyle=this.c; ctx.fillRect(this.getSX(), this.y, this.w, this.h); }
-    }
+class Bullet extends Entity {
+    constructor(x, y, d) { super(x, y, 40, 2, '#0ff'); this.vx = d * 18; this.life = 50; }
+    update() { super.update(); this.life--; if (this.life <= 0) this.dead = true; }
+    draw() { ctx.fillStyle = this.color; ctx.fillRect(this.getSX(), this.y, this.w, this.h); }
+}
 
-    class Enemy extends Entity {
-        constructor() { super(Math.random()*WORLD_WIDTH, 50+Math.random()*300, 22, 22, '#f0f'); this.vx=(Math.random()-0.5)*3; this.vy=(Math.random()-0.5)*1.5; }
-        update() { super.update(); if(this.y<30 || this.y>GROUND_LEVEL-30) this.vy*=-1; }
-        draw() { let sx=this.getSX(); ctx.strokeStyle=this.c; ctx.lineWidth=2; ctx.strokeRect(sx,this.y,this.w,this.h); ctx.strokeRect(sx+6,this.y+6,10,10); }
-    }
+class Enemy extends Entity {
+    constructor() { super(Math.random() * WORLD_WIDTH, 50 + Math.random() * 300, 22, 22, '#f0f'); this.vx = (Math.random() - 0.5) * 3; this.vy = (Math.random() - 0.5) * 1.5; }
+    update() { super.update(); if (this.y < 30 || this.y > GROUND_LEVEL - 30) this.vy *= -1; }
+    draw() { let sx = this.getSX(); ctx.strokeStyle = this.color; ctx.lineWidth = 2; ctx.strokeRect(sx, this.y, this.w, this.h); ctx.strokeRect(sx + 6, this.y + 6, 10, 10); }
+}
 
-    function startGame() {
-        document.getElementById('start-scr').classList.add('hidden');
-        score=0; lives=3; bombs=3; player=new Player(); enemies=[]; bullets=[];
-        stars=Array.from({length:100},()=>({x:Math.random()*WORLD_WIDTH, y:Math.random()*GROUND_LEVEL, c:'#666'}));
-        terrain=[]; for(let x=0; x<=WORLD_WIDTH; x+=100) terrain.push({x, y:GROUND_LEVEL-Math.random()*100});
-        for(let i=0; i<15; i++) enemies.push(new Enemy());
-        running=true;
-    }
+function init() {
+    state.score = 0; state.lives = 3; state.smartBombs = 3; state.player = new Player();
+    state.enemies = Array.from({length: 12}, () => new Enemy());
+    state.bullets = []; state.stars = Array.from({length: 100}, () => ({x: Math.random() * WORLD_WIDTH, y: Math.random() * GROUND_LEVEL, c: '#555'}));
+    state.terrain = []; for(let x=0; x<=WORLD_WIDTH; x+=100) state.terrain.push({x, y: GROUND_LEVEL - Math.random() * 100});
+    updateUI();
+}
 
-    function loop() {
-        if(running && player) {
-            player.update();
-            bullets.forEach(b=>b.update());
-            enemies.forEach(e=>{
-                e.update();
-                let dx=Math.abs(player.getSX()-e.getSX());
-                if(dx<20 && Math.abs(player.y-e.y)<20) { lives--; if(lives<=0) { running=false; document.getElementById('start-scr').classList.remove('hidden'); } else { player.x=WORLD_WIDTH/2; player.y=VIEW_HEIGHT/2; } }
+function updateUI() { document.getElementById('score-val').innerText = state.score; document.getElementById('bombs-val').innerText = state.smartBombs; document.getElementById('ships-val').innerText = state.lives; }
+
+function playerHit() {
+    state.lives--; updateUI();
+    if (state.lives <= 0) { state.running = false; document.getElementById('start-screen').classList.remove('hidden'); }
+    else { state.player.x = WORLD_WIDTH / 2; state.player.y = VIEW_HEIGHT / 2; state.player.vx = 0; state.player.vy = 0; }
+}
+
+function loop() {
+    if (state.running && state.player) {
+        state.player.update();
+        state.enemies.forEach(e => {
+            e.update();
+            let dx = Math.abs(state.player.getSX() - e.getSX());
+            if (dx < 20 && Math.abs(state.player.y - e.y) < 20) playerHit();
+        });
+        state.bullets.forEach(b => {
+            b.update();
+            state.enemies.forEach(e => {
+                let dx = Math.abs(b.getSX() - e.getSX());
+                if (dx < e.w && Math.abs(b.y - e.y) < e.h) { e.dead = true; b.dead = true; state.score += 150; updateUI(); }
             });
-            bullets.forEach(b=>{
-                enemies.forEach(e=>{
-                    let dx=Math.abs(b.getSX()-e.getSX());
-                    if(dx<e.w && Math.abs(b.y-e.y)<e.h) { e.dead=true; b.dead=true; score+=150; }
-                });
-            });
-            enemies=enemies.filter(e=>!e.dead); bullets=bullets.filter(b=>!b.dead);
-            if(enemies.length<8) enemies.push(new Enemy());
-            document.getElementById('s').innerText=score; document.getElementById('b').innerText=bombs; document.getElementById('l').innerText=lives;
-        }
-        ctx.fillStyle='#000'; ctx.fillRect(0,0,VIEW_WIDTH,VIEW_HEIGHT);
-        if(player) {
-            stars.forEach(s=>{ let sx=s.x-camX; if(sx<-WORLD_WIDTH/2)sx+=WORLD_WIDTH; if(sx>WORLD_WIDTH/2)sx-=WORLD_WIDTH; ctx.fillStyle=s.c; ctx.fillRect(sx+VIEW_WIDTH/2,s.y,1,1); });
-            ctx.strokeStyle='#a52a2a'; ctx.beginPath(); terrain.forEach((p,i)=>{
-                let sx=p.x-camX; if(sx<-WORLD_WIDTH/2)sx+=WORLD_WIDTH; if(sx>WORLD_WIDTH/2)sx-=WORLD_WIDTH; if(i===0)ctx.moveTo(sx+VIEW_WIDTH/2,p.y); else ctx.lineTo(sx+VIEW_WIDTH/2,p.y);
-            }); ctx.stroke();
-            bullets.forEach(b=>b.draw()); enemies.forEach(e=>e.draw()); player.draw();
-            drawRadar();
-        }
-        requestAnimationFrame(loop);
+        });
+        state.enemies = state.enemies.filter(e => !e.dead); state.bullets = state.bullets.filter(b => !b.dead);
+        if (state.enemies.length < 6) state.enemies.push(new Enemy());
     }
-
-    function drawRadar() {
-        const rw=600, rh=50, rx=(VIEW_WIDTH-rw)/2, ry=15, scale=rw/WORLD_WIDTH;
-        ctx.fillStyle='rgba(30,30,30,0.8)'; ctx.fillRect(rx,ry,rw,rh);
-        ctx.fillStyle='#fff'; ctx.fillRect(rx+player.x*scale, ry+player.y/VIEW_HEIGHT*rh, 3, 3);
-        ctx.fillStyle='#f0f'; enemies.forEach(e=>ctx.fillRect(rx+e.x*scale, ry+e.y/VIEW_HEIGHT*rh, 2, 2));
+    ctx.fillStyle = '#000'; ctx.fillRect(0, 0, VIEW_WIDTH, VIEW_HEIGHT);
+    if (state.player) {
+        state.stars.forEach(s => { let sx = s.x - state.camX; if(sx < -WORLD_WIDTH/2) sx += WORLD_WIDTH; if(sx > WORLD_WIDTH/2) sx -= WORLD_WIDTH; ctx.fillStyle = s.c; ctx.fillRect(sx + VIEW_WIDTH/2, s.y, 1, 1); });
+        ctx.strokeStyle = '#a52a2a'; ctx.beginPath(); state.terrain.forEach((p, i) => { let sx = p.x - state.camX; if(sx < -WORLD_WIDTH/2) sx += WORLD_WIDTH; if(sx > WORLD_WIDTH/2) sx -= WORLD_WIDTH; if(i === 0) ctx.moveTo(sx + VIEW_WIDTH/2, p.y); else ctx.lineTo(sx + VIEW_WIDTH/2, p.y); }); ctx.stroke();
+        state.bullets.forEach(b => b.draw()); state.enemies.forEach(e => e.draw()); state.player.draw();
     }
+    requestAnimationFrame(loop);
+}
 
-    window.addEventListener('keydown', e=>keys[e.code]=true);
-    window.addEventListener('keyup', e=>keys[e.code]=false);
-    
-    const knob=document.getElementById('knob'), jz=document.getElementById('jz');
-    let tj=false;
-    jz.addEventListener('pointerdown', ()=>tj=true);
-    window.addEventListener('pointermove', e=>{
-        if(!tj)return; const r=jz.getBoundingClientRect(), dx=e.clientX-(r.left+60), dy=e.clientY-(r.top+60), dist=Math.min(60, Math.sqrt(dx*dx+dy*dy));
-        knob.style.transform=`translate(${dx*dist/60}px,${dy*dist/60}px)`;
-        input.jx=dx/60; input.jy=dy/60;
-    });
-    window.addEventListener('pointerup', ()=>{tj=false; knob.style.transform=''; input.jx=0; input.jy=0;});
-    document.getElementById('bf').addEventListener('pointerdown', ()=>input.f=true);
-    document.getElementById('bf').addEventListener('pointerup', ()=>input.f=false);
-    document.getElementById('bb').addEventListener('pointerdown', ()=>{ if(bombs>0){bombs--; enemies.forEach(e=>{if(Math.abs(e.getSX()-VIEW_WIDTH/2)<VIEW_WIDTH/2)e.dead=true;});}});
-    document.getElementById('bw').addEventListener('pointerdown', ()=>{player.x=Math.random()*WORLD_WIDTH; player.y=Math.random()*GROUND_LEVEL;});
-
-    loop();
+window.addEventListener('keydown', e => state.keys[e.code] = true);
+window.addEventListener('keyup', e => state.keys[e.code] = false);
+const kn = document.getElementById('kn'), jz = document.getElementById('jz');
+let tj = false;
+jz.addEventListener('pointerdown', () => tj = true);
+window.addEventListener('pointermove', e => {
+    if (!tj) return; const r = jz.getBoundingClientRect(), dx = e.clientX - (r.left + 60), dy = e.clientY - (r.top + 60), d = Math.min(60, Math.sqrt(dx*dx + dy*dy));
+    kn.style.transform = `translate(${dx * d / 60}px, ${dy * d / 60}px)`;
+    state.input.jx = dx / 60; state.input.jy = dy / 60;
+});
+window.addEventListener('pointerup', () => { tj = false; kn.style.transform = ''; state.input.jx = 0; state.input.jy = 0; });
+document.getElementById('bf').addEventListener('pointerdown', () => state.input.f = true);
+document.getElementById('bf').addEventListener('pointerup', () => state.input.f = false);
+document.getElementById('bb').addEventListener('pointerdown', () => { if(state.smartBombs > 0){ state.smartBombs--; updateUI(); state.enemies.forEach(e => { if(Math.abs(e.getSX() - VIEW_WIDTH/2) < VIEW_WIDTH/2) e.dead = true; }); } });
+document.getElementById('bw').addEventListener('pointerdown', () => { state.player.x = Math.random() * WORLD_WIDTH; state.player.y = Math.random() * GROUND_LEVEL; });
+document.getElementById('start-btn').addEventListener('click', () => { document.getElementById('start-screen').classList.add('hidden'); init(); state.running = true; });
+loop();
 </script>
 </body>
 </html>
