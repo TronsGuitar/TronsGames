@@ -73,7 +73,8 @@
         // --- COMPONENTS ---
 
         const Tile = ({ letter, color, isCurrent }) => {
-            let baseClasses = "w-full h-full border-2 flex items-center justify-center text-2xl sm:text-3xl font-bold uppercase select-none transition-all duration-500 flip-card rounded-sm";
+            // Updated to use flex-1 to guarantee proper spacing in flex containers
+            let baseClasses = "flex-1 w-full h-full border-2 flex items-center justify-center text-2xl sm:text-3xl font-bold uppercase select-none transition-all duration-500 flip-card rounded-sm";
             
             if (isCurrent && letter) {
                 baseClasses += " animate-pulse border-gray-400 text-white";
@@ -95,7 +96,8 @@
         };
 
         const Row = ({ guess, currentGuess, isCurrentRow }) => {
-            const rowClass = "grid grid-cols-5 gap-1.5 w-full h-full";
+            // Swapped grid for flex to prevent vertical stacking in iframes
+            const rowClass = "flex gap-1.5 w-full flex-1";
 
             if (guess) {
                 return (
@@ -342,9 +344,9 @@
                         </div>
                     )}
 
-                    {/* Dynamic Grid Container */}
+                    {/* Dynamic Grid Container - Swapped grid for flex flex-col to force rendering reliably in iframes */}
                     <div className="flex-grow flex items-center justify-center w-full min-h-0 p-2 sm:p-4">
-                        <div className="grid grid-rows-6 gap-1.5 w-full h-full max-h-[400px] max-w-[320px]">
+                        <div className="flex flex-col gap-1.5 w-full h-full max-h-[400px] max-w-[320px]">
                             {guesses.map((g, i) => (
                                 <Row key={i} guess={g} currentGuess={currentGuess} isCurrentRow={turn === i} />
                             ))}
