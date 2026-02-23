@@ -3,38 +3,170 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Your Game Title</title>
+    <title>Trons Games</title>
+    <script src="https://cdn.tailwindcss.com"></script>
     <style>
+        @import url('https://fonts.googleapis.com/css2?family=Handlee&display=swap');
+
         body {
+            font-family: 'Handlee', cursive;
+            background-color: #0f172a;
+            color: #e2e8f0;
+            overflow: hidden;
             margin: 0;
-            padding: 0;
-            overflow: hidden; /* Prevent scrolling */
-        }
-        #gameContainer {
-            width: 100vw;
+            display: flex;
+            flex-direction: column;
             height: 100vh;
-            position: relative;
+            width: 100vw;
         }
+
+        nav {
+            background-color: #1e293b;
+            border-bottom: 2px solid #334155;
+            padding: 0.5rem 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            z-index: 1000;
+            flex-shrink: 0;
+            height: 54px;
+        }
+
+        .nav-btn {
+            padding: 0.4rem 0.8rem;
+            border-radius: 0.5rem;
+            transition: all 0.2s;
+            font-weight: bold;
+            cursor: pointer;
+            user-select: none;
+            font-size: 0.85rem;
+            white-space: nowrap;
+            border: 1px solid transparent;
+        }
+
+        .nav-btn.active {
+            background-color: #4f46e5;
+            color: white;
+            border-color: #818cf8;
+            box-shadow: 0 0 10px rgba(79, 70, 229, 0.4);
+        }
+
+        .nav-btn:not(.active):hover {
+            background-color: #334155;
+            border-color: #475569;
+        }
+
+        .game-viewport {
+            flex-grow: 1;
+            position: relative;
+            width: 100%;
+            height: calc(100vh - 54px);
+            background: #000;
+        }
+
         iframe {
             width: 100%;
             height: 100%;
             border: none;
-            display: block; /* Ensure no spaces around iframe */
         }
-        #controls {
-            position: absolute;
-            top: 10px;
-            left: 10px;
-            z-index: 1000; /* Ensure controls are above the game content */
+
+        /* Custom Scrollbar for the tab bar if many games are added */
+        #nav-tabs::-webkit-scrollbar {
+            height: 4px;
+        }
+        #nav-tabs::-webkit-scrollbar-thumb {
+            background: #334155;
+            border-radius: 10px;
         }
     </style>
 </head>
 <body>
-    <div id="gameContainer">
-        <iframe src="your-game-url" allowfullscreen></iframe>
-        <div id="controls">
-            <!-- Your controls here -->
+
+    <nav>
+        <div class="flex items-center gap-4 overflow-hidden w-full">
+            <span class="text-sm font-bold text-indigo-400 hidden md:inline whitespace-nowrap">Trons Games</span>
+            
+            <!-- This container will hold all the dynamic menu options -->
+            <div id="nav-tabs" class="flex gap-2 overflow-x-auto pb-1 no-scrollbar">
+                <!-- Menu items will be injected here by JavaScript -->
+            </div>
         </div>
+        
+        <div class="ml-4 flex-shrink-0">
+            <div id="status-tag" class="text-[8px] text-slate-500 bg-slate-800 px-2 py-1 rounded uppercase font-bold tracking-widest border border-slate-700">
+                System Ready
+            </div>
+        </div>
+    </nav>
+
+    <div id="game-viewport" class="game-viewport">
+        <!-- The selected game file will load here -->
+        <iframe id="main-frame" src="" allow="autoplay; gamepad; keyboard; focus-without-user-activation"></iframe>
     </div>
+
+    <script>
+        /**
+         * MENU CONFIGURATION
+         * To add a new game, simply add the exact filename to this array.
+         * The portal will handle the rest!
+         */
+        const gameFiles = [
+            "defender-clone.html",
+            "wordle-clone.html",
+            "cootie-catcher.html",
+            "asteroids-clone.html"
+            // "your-next-game.html" <--- Just add them like this!
+        ];
+
+        const tabsContainer = document.getElementById('nav-tabs');
+        const mainFrame = document.getElementById('main-frame');
+
+        function initPortal() {
+            // Clear current tabs
+            tabsContainer.innerHTML = '';
+
+            gameFiles.forEach((fileName, index) => {
+                // Create the menu button (tab)
+                const tab = document.createElement('div');
+                tab.className = 'nav-btn';
+                tab.id = `tab-${index}`;
+                tab.innerText = fileName; // Uses exact filename as requested
+                
+                tab.onclick = () => {
+                    loadGame(fileName, index);
+                };
+
+                tabsContainer.appendChild(tab);
+            });
+
+            // Automatically load the first game in the list on startup
+            if (gameFiles.length > 0) {
+                loadGame(gameFiles[0], 0);
+            }
+        }
+
+        function loadGame(fileName, index) {
+            // Update Iframe Source
+            mainFrame.src = fileName;
+
+            // Update Active Tab Styling
+            const allTabs = document.querySelectorAll('.nav-btn');
+            allTabs.forEach(t => t.classList.remove('active'));
+            
+            const activeTab = document.getElementById(`tab-${index}`);
+            if (activeTab) {
+                activeTab.classList.add('active');
+                
+                // Ensure the tab is visible if there's horizontal scrolling
+                activeTab.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+            }
+
+            // Update Status Tag
+            document.getElementById('status-tag').innerText = `Running: ${fileName}`;
+        }
+
+        // Initialize on load
+        window.onload = initPortal;
+    </script>
 </body>
 </html>
