@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mega Minesweeper AI (64x64)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            background-color: #0f172a;
+            color: #e2e8f0;
+            font-family: system-ui, -apple-system, sans-serif;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            margin: 0;
+        }
+        canvas {
+            image-rendering: pixelated;
+            cursor: crosshair;
+            touch-action: none;
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+        }
+        .controls-panel {
+            background: rgba(30, 41, 59, 0.95);
+            backdrop-filter: blur(12px);
+            z-index: 50;
+        }
+        #message-box {
+            position: fixed;
+            top: 80px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-weight: bold;
+            z-index: 100;
+            display: none;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+            pointer-events: none;
+        }
+        #game-root:fullscreen {
+            background-color: #0f172a;
+            display: flex;
+            flex-direction: column;
+        }
+    </style>
+</head>
+<body class="bg-slate-950">
+
+    <div id="game-root" class="flex flex-col h-full w-full">
+        <div id="message-box"></div>
+
+        <!-- Header / Stats -->
+        <div class="controls-panel p-3 flex flex-wrap items-center justify-between border-b border-slate-700 shadow-lg">
+            <div class="flex items-center gap-6">
+                <div class="flex flex-col">
+                    <h1 class="text-lg font-bold text-blue-400 leading-none">MegaMines AI</h1>
+                    <span class="text-[10px] uppercase tracking-widest text-slate-500 font-bold">64x64 Hard Mode</span>
+                </div>
+                <div class="flex gap-4 text-sm font-mono bg-slate-900/50 px-3 py-1.5 rounded-md border border-slate-800">
+                    <div class="flex flex-col items-center px-2">
+                        <span class="text-[10px] text-slate-500 uppercase">Mines</span>
+                        <span id="mine-count" class="text-red-400 font-bold">--</span>
+                    </div>
+                    <div class="flex flex-col items-center px-2 border-x border-slate-800">
+                        <span class="text-[10px] text-slate-500 uppercase">Flags</span>
+                        <span id="flag-count" class="text-orange-400 font-bold">0</span>
+                    </div>
+                    <div class="flex flex-col items-center px-2">
+                        <span class="text-[10px] text-slate-500 uppercase">Time</span>
+                        <span id="timer" class="text-green-400 font-bold">0s</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="flex gap-2 items-center">
+                <div class="flex items-center gap-2 bg-slate-800 px-3 py-2 rounded border border-slate-700 mr-2">
+                    <input type="checkbox" id="pursuit-mode" class="w-4 h-4 accent-indigo-500 cursor-pointer">
+                    <label for="pursuit-mode" class="text-xs font-bold text-slate-300 cursor-pointer select-none">Win Pursuit (Auto-Retry)</label>
+                </div>
+                <button id="reset-btn" class="bg-slate-700 hover:bg-slate-600 px-4 py-2 rounded text-sm font-bold transition">Reset</button>
+                <button id="simulate-btn" class="bg-indigo-600 hover:bg-indigo-500 px-4 py-2 rounded text-sm font-bold transition min-w-[140px]">Auto-Simulate</button>
+                <button id="fullscreen-btn" class="bg-slate-800 hover:bg-slate-700 p-2 rounded transition border border-slate-600">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
+                </button>
+            </div>
+        </div>
+
+        <!-- Game Area -->
+        <div class="flex-grow overflow-hidden relative flex items-center justify-center bg-slate-900">
+            <div id="canvas-container" class="relative w-full h-full flex items-center justify-center p-2">
+                <canvas id="gameCanvas"></canvas>
+            </div>
+        </div>
+
+        <!-- AI Info Overlay -->
+        <div class="px-4 py-1.5 text-[10px] text-slate-500 flex justify-between bg-slate-950 border-t border-slate-800">
+            <div id="ai-status" class="font-mono uppercase tracking-tight">AI Status: Idle</div>
+            <div class="font-mono" id="stats-display">Attempt #1 | Wins: 0</div>
+        </div>
+    </div>
+
+    <script>
+        const GRID_SIZE = 64;
+        const MINE_PROBABILITY = 0.20; 
+        const CELL_SIZE = 24;
+        
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const msgBox = document.getElementById('message-box');
+        const root = document.getElementById('game-root');
+        
+        let grid = [];
+        let gameOver = false;
+        let gameWon = false;
+        let firstClick = true;
+        let mineCount = 0;
+        let flagsUsed = 0;
+        let startTime = null;
+        let timerInterval = null;
+        let autoSimulating = false;
+        let attempts = 1;
+        let wins = 0;
+
+        const COLORS = {
+            unrevealed: '#334155',
+            revealed: '#1e293b',
+            border: '#0f172a',
+            mine: '#ef4444',
+            flag: '#f59e0b',
+            text: ['', '#60a5fa', '#4ade80', '#f87171', '#818cf8', '#f472b6', '#2dd4bf', '#fbbf24', '#ffffff']
+        };
+
+        function initGame(isRetry = false) {
+            grid = [];
+            gameOver = false;
+            gameWon = false;
+            firstClick = true;
+            flagsUsed = 0;
+            mineCount = Math.floor(GRID_SIZE * GRID_SIZE * MINE_PROBABILITY);
+            
+            if (!isRetry) {
+                autoSimulating = false;
+                document.getElementById('simulate-btn').innerText = "Auto-Simulate";
+            }
+            
+            document.getElementById('mine-count').innerText = mineCount;
+            document.getElementById('flag-count').innerText = 0;
+            document.getElementById('timer').innerText = "0s";
+            document.getElementById('stats-display').innerText = `Attempt #${attempts} | Wins: ${wins}`;
+            
+            clearInterval(timerInterval);
+            msgBox.style.display = 'none';
+
+            for (let y = 0; y < GRID_SIZE; y++) {
+                grid[y] = [];
+                for (let x = 0; x < GRID_SIZE; x++) {
+                    grid[y][x] = { isMine: false, revealed: false, flagged: false, neighborMines: 0, x, y };
+                }
+            }
+
+            canvas.width = GRID_SIZE * CELL_SIZE;
+            canvas.height = GRID_SIZE * CELL_SIZE;
+            draw();
+        }
+
+        function placeMines(exX, exY) {
+            let placed = 0;
+            while (placed < mineCount) {
+                let x = Math.floor(Math.random() * GRID_SIZE);
+                let y = Math.floor(Math.random() * GRID_SIZE);
+                if (!grid[y][x].isMine && (Math.abs(x - exX) > 1 || Math.abs(y - exY) > 1)) {
+                    grid[y][x].isMine = true;
+                    placed++;
+                }
+            }
+            for (let y = 0; y < GRID_SIZE; y++) {
+                for (let x = 0; x < GRID_SIZE; x++) {
+                    if (grid[y][x].isMine) continue;
+                    grid[y][x].neighborMines = getNeighbors(x, y).filter(n => n.isMine).length;
+                }
+            }
+        }
+
+        function getNeighbors(x, y) {
+            const neighbors = [];
+            for (let dy = -1; dy <= 1; dy++) {
+                for (let dx = -1; dx <= 1; dx++) {
+                    if (dx === 0 && dy === 0) continue;
+                    const nx = x + dx, ny = y + dy;
+                    if (nx >= 0 && nx < GRID_SIZE && ny >= 0 && ny < GRID_SIZE) neighbors.push(grid[ny][nx]);
+                }
+            }
+            return neighbors;
+        }
+
+        function reveal(x, y) {
+            if (x < 0 || x >= GRID_SIZE || y < 0 || y >= GRID_SIZE) return;
+            if (gameOver || gameWon || grid[y][x].revealed || grid[y][x].flagged) return;
+
+            if (firstClick) {
+                placeMines(x, y);
+                firstClick = false;
+                startTime = Date.now();
+                timerInterval = setInterval(() => {
+                    document.getElementById('timer').innerText = Math.floor((Date.now() - startTime) / 1000) + "s";
+                }, 1000);
+            }
+
+            const cell = grid[y][x];
+            cell.revealed = true;
+
+            if (cell.isMine) {
+                endGame(false);
+                return;
+            }
+
+            if (cell.neighborMines === 0) {
+                getNeighbors(x, y).forEach(n => reveal(n.x, n.y));
+            }
+
+            checkWin();
+            draw();
+        }
+
+        function toggleFlag(x, y) {
+            if (x < 0 || x >= GRID_SIZE || y < 0 || y >= GRID_SIZE || gameOver || gameWon || grid[y][x].revealed) return;
+            grid[y][x].flagged = !grid[y][x].flagged;
+            flagsUsed += grid[y][x].flagged ? 1 : -1;
+            document.getElementById('flag-count').innerText = flagsUsed;
+            draw();
+        }
+
+        function checkWin() {
+            let revealedCount = 0;
+            for (let y = 0; y < GRID_SIZE; y++) {
+                for (let x = 0; x < GRID_SIZE; x++) if (grid[y][x].revealed) revealedCount++;
+            }
+            if (revealedCount === (GRID_SIZE * GRID_SIZE) - mineCount) endGame(true);
+        }
+
+        function endGame(won) {
+            gameOver = !won;
+            gameWon = won;
+            clearInterval(timerInterval);
+            
+            if (won) {
+                wins++;
+                autoSimulating = false;
+                document.getElementById('simulate-btn').innerText = "Auto-Simulate";
+                msgBox.style.display = 'block';
+                msgBox.innerText = "VICTORY! GRID PURGED";
+                msgBox.className = "bg-green-600 text-white p-4 rounded font-bold";
+            } else if (!document.getElementById('pursuit-mode').checked) {
+                msgBox.style.display = 'block';
+                msgBox.innerText = "GAME OVER - MINE TRIGGERED";
+                msgBox.className = "bg-red-600 text-white p-4 rounded font-bold";
+            }
+
+            for (let y = 0; y < GRID_SIZE; y++) {
+                for (let x = 0; x < GRID_SIZE; x++) if (grid[y][x].isMine) grid[y][x].revealed = true;
+            }
+            draw();
+
+            if (!won && document.getElementById('pursuit-mode').checked && autoSimulating) {
+                attempts++;
+                setTimeout(() => initGame(true), 100);
+                setTimeout(runSimulationLoop, 200);
+            }
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            for (let y = 0; y < GRID_SIZE; y++) {
+                for (let x = 0; x < GRID_SIZE; x++) {
+                    const cell = grid[y][x], px = x * CELL_SIZE, py = y * CELL_SIZE;
+                    ctx.fillStyle = cell.revealed ? COLORS.revealed : COLORS.unrevealed;
+                    ctx.fillRect(px, py, CELL_SIZE, CELL_SIZE);
+                    ctx.strokeStyle = COLORS.border;
+                    ctx.strokeRect(px, py, CELL_SIZE, CELL_SIZE);
+                    if (cell.revealed) {
+                        if (cell.isMine) {
+                            ctx.fillStyle = COLORS.mine;
+                            ctx.beginPath(); ctx.arc(px + CELL_SIZE/2, py + CELL_SIZE/2, CELL_SIZE/4, 0, Math.PI * 2); ctx.fill();
+                        } else if (cell.neighborMines > 0) {
+                            ctx.fillStyle = COLORS.text[cell.neighborMines];
+                            ctx.font = `bold ${CELL_SIZE * 0.6}px sans-serif`;
+                            ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+                            ctx.fillText(cell.neighborMines, px + CELL_SIZE/2, py + CELL_SIZE/2);
+                        }
+                    } else if (cell.flagged) {
+                        ctx.fillStyle = COLORS.flag;
+                        ctx.beginPath(); ctx.moveTo(px+7, py+5); ctx.lineTo(px+17, py+10); ctx.lineTo(px+7, py+15); ctx.fill();
+                        ctx.fillRect(px+6, py+5, 2, 14);
+                    }
+                }
+            }
+        }
+
+        // --- ENHANCED AI ---
+
+        function solveStep() {
+            if (gameOver || gameWon) return false;
+            if (firstClick) { reveal(32, 32); updateAIStatus("Opening center..."); return true; }
+
+            // 1. Logic Scan (Trivial Cases)
+            const frontier = [];
+            for (let y = 0; y < GRID_SIZE; y++) {
+                for (let x = 0; x < GRID_SIZE; x++) {
+                    if (grid[y][x].revealed && grid[y][x].neighborMines > 0) {
+                        const neighbors = getNeighbors(x, y);
+                        const hidden = neighbors.filter(n => !n.revealed && !n.flagged);
+                        const flags = neighbors.filter(n => n.flagged).length;
+                        if (hidden.length > 0) frontier.push({ cell: grid[y][x], hidden, flags });
+                    }
+                }
+            }
+
+            for (let f of frontier) {
+                if (f.hidden.length === f.cell.neighborMines - f.flags) {
+                    f.hidden.forEach(n => toggleFlag(n.x, n.y));
+                    updateAIStatus("Deducing guaranteed mines..."); return true;
+                }
+                if (f.flags === f.cell.neighborMines) {
+                    f.hidden.forEach(n => reveal(n.x, n.y));
+                    updateAIStatus("Clearing safe neighbors..."); return true;
+                }
+            }
+
+            // 2. Statistical Guessing (Stuck)
+            updateAIStatus("Calculating probabilities...");
+            const candidates = new Map();
+            for (let f of frontier) {
+                const prob = (f.cell.neighborMines - f.flags) / f.hidden.length;
+                f.hidden.forEach(n => {
+                    const key = `${n.x},${n.y}`;
+                    const current = candidates.get(key) || { cell: n, risk: 0, hits: 0 };
+                    current.risk = Math.max(current.risk, prob); // Conservative estimate
+                    current.hits++;
+                    candidates.set(key, current);
+                });
+            }
+
+            if (candidates.size > 0) {
+                let best = null;
+                for (let entry of candidates.values()) {
+                    if (!best || entry.risk < best.risk) best = entry;
+                }
+                reveal(best.cell.x, best.cell.y);
+                updateAIStatus(`Taking calculated risk (Prob: ${Math.round(best.risk*100)}%)`);
+                return true;
+            }
+
+            // 3. Last Resort: Random
+            const allHidden = [];
+            for(let y=0; y<GRID_SIZE; y++) for(let x=0; x<GRID_SIZE; x++) if(!grid[y][x].revealed && !grid[y][x].flagged) allHidden.push(grid[y][x]);
+            if (allHidden.length > 0) {
+                const r = allHidden[Math.floor(Math.random()*allHidden.length)];
+                reveal(r.x, r.y);
+                updateAIStatus("Blind jump!");
+                return true;
+            }
+
+            return false;
+        }
+
+        function updateAIStatus(msg) {
+            document.getElementById('ai-status').innerText = "AI Status: " + msg;
+        }
+
+        function runSimulationLoop() {
+            if (!autoSimulating || gameOver || gameWon) return;
+            if (solveStep()) {
+                setTimeout(runSimulationLoop, 5);
+            } else {
+                updateAIStatus("No moves left.");
+                autoSimulating = false;
+                document.getElementById('simulate-btn').innerText = "Auto-Simulate";
+            }
+        }
+
+        // --- Interaction ---
+        function handleInput(e) {
+            const rect = canvas.getBoundingClientRect();
+            const x = Math.floor(((e.clientX - rect.left) * (canvas.width / rect.width)) / CELL_SIZE);
+            const y = Math.floor(((e.clientY - rect.top) * (canvas.height / rect.height)) / CELL_SIZE);
+            return { x: Math.max(0, Math.min(x, 63)), y: Math.max(0, Math.min(y, 63)) };
+        }
+
+        canvas.addEventListener('mousedown', (e) => {
+            const { x, y } = handleInput(e);
+            if (e.button === 0) reveal(x, y);
+            if (e.button === 2) toggleFlag(x, y);
+        });
+
+        canvas.addEventListener('contextmenu', e => e.preventDefault());
+        document.getElementById('reset-btn').addEventListener('click', () => { attempts = 1; wins = 0; initGame(); });
+        document.getElementById('simulate-btn').addEventListener('click', function() {
+            autoSimulating = !autoSimulating;
+            this.innerText = autoSimulating ? "Stop Simulation" : "Auto-Simulate";
+            if (autoSimulating) runSimulationLoop();
+        });
+        document.getElementById('fullscreen-btn').addEventListener('click', () => {
+            if (!document.fullscreenElement) root.requestFullscreen().catch(() => {});
+            else document.exitFullscreen();
+        });
+
+        initGame();
+    </script>
+</body>
+</html>
