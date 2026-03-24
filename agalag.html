@@ -1,0 +1,909 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>AGALAG: Space Hunter</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            background-color: #0b0b1a;
+            color: #fff;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            overflow: hidden;
+            touch-action: none;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            width: 100vw;
+        }
+        #game-container {
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            width: 100%;
+            height: 100%;
+            max-width: 100vw;
+            padding: 10px;
+        }
+        canvas {
+            display: block;
+            margin: 0 auto;
+            background-color: #000010;
+            border: 4px solid #1a196e;
+            border-radius: 12px;
+            image-rendering: pixelated;
+            box-shadow: 0 0 20px rgba(100, 80, 255, 0.5);
+            max-height: calc(100vh - 140px);
+            max-width: 100%;
+            width: auto;
+            height: auto;
+            object-fit: contain;
+            touch-action: none;
+        }
+
+        /* --- Floating D-Pad --- */
+        #floating-dpad {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            display: grid;
+            grid-template-columns: repeat(3, 48px);
+            grid-template-rows: repeat(3, 48px);
+            gap: 4px;
+            z-index: 100;
+            padding: 10px;
+            background: rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(12px);
+            border-radius: 22px;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            touch-action: none;
+            transition: box-shadow 0.3s, transform 0.1s;
+        }
+
+        #floating-dpad.is-dragging {
+            box-shadow: 0 0 30px #6464ff;
+            border: 2px solid #6464ff;
+            opacity: 0.95;
+            transform: scale(1.1);
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0%   { box-shadow: 0 0 15px #6464ff; }
+            50%  { box-shadow: 0 0 40px #6464ff; }
+            100% { box-shadow: 0 0 15px #6464ff; }
+        }
+
+        .btn-control {
+            width: 48px;
+            height: 48px;
+            background: rgba(255, 255, 255, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.4);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            user-select: none;
+            color: white;
+            -webkit-tap-highlight-color: transparent;
+            pointer-events: auto;
+        }
+
+        .btn-control:active {
+            background: rgba(255, 255, 255, 0.5);
+            transform: scale(0.95);
+        }
+
+        #btn-fire {
+            background: rgba(255, 80, 80, 0.4);
+            border: 1px solid rgba(255, 120, 120, 0.6);
+            border-radius: 50%;
+            font-size: 16px;
+            font-weight: bold;
+        }
+
+        .active-ship {
+            outline: 3px solid #fff;
+            outline-offset: 2px;
+            transform: scale(1.1);
+        }
+
+        #overlay {
+            background: rgba(0, 0, 0, 0.85);
+            backdrop-filter: blur(8px);
+        }
+
+        .dialog-box {
+            background: #111122;
+            border: 3px solid #3333cc;
+            box-shadow: 0 0 40px rgba(0,0,0,1), inset 0 0 20px rgba(50, 50, 200, 0.3);
+        }
+
+        .stat-label {
+            font-size: 8px;
+            color: #9ca3af;
+            font-weight: 800;
+            text-transform: uppercase;
+        }
+
+        .stat-value {
+            font-family: monospace;
+            font-size: 16px;
+            color: #fbbf24;
+        }
+
+        @media (min-width: 768px) {
+            #floating-dpad { opacity: 0.3; }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="game-container">
+        <!-- Header Stats -->
+        <div class="grid grid-cols-2 gap-2 bg-gray-900 p-3 rounded-lg border border-gray-700">
+            <div class="flex flex-col gap-1 border-r border-gray-700 pr-2">
+                <div class="flex justify-between items-end">
+                    <h1 class="text-md font-bold text-red-500 tracking-tighter leading-none">AGALAG</h1>
+                    <span id="level-indicator" class="text-[10px] text-white font-black uppercase">Level 1</span>
+                </div>
+                <div class="flex justify-between items-center">
+                    <span class="stat-label">HI LEVEL</span>
+                    <span id="hi-level" class="stat-value text-white">1</span>
+                </div>
+                <div class="flex justify-between items-center">
+                    <span class="stat-label">HI SCORE</span>
+                    <span id="hi-score" class="stat-value">0000</span>
+                </div>
+            </div>
+            <div class="flex flex-col gap-1 pl-2">
+                <div class="flex justify-between items-center">
+                    <span class="stat-label text-yellow-500">SCORE</span>
+                    <span id="current-score" class="stat-value">0000</span>
+                </div>
+                <div class="flex justify-between items-center">
+                    <span class="stat-label">ENEMIES</span>
+                    <span id="enemy-count" class="stat-value text-red-400">000</span>
+                </div>
+                <div class="flex justify-end items-center gap-2 mt-1">
+                    <button id="mute-btn" class="bg-gray-800 p-1 rounded hover:bg-gray-700 transition" title="Mute/Unmute">
+                        <svg id="svg-unmuted" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="block"><path d="M11 5L6 9H2v6h4l5 4V5z"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
+                        <svg id="svg-muted" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="hidden"><path d="M11 5L6 9H2v6h4l5 4V5z"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/></svg>
+                    </button>
+                    <button id="fullscreen-btn" class="bg-gray-800 p-1 rounded hover:bg-gray-700 transition">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Game Area -->
+        <div class="relative flex-grow flex items-center justify-center">
+            <canvas id="gameCanvas"></canvas>
+
+            <div id="ready-timer" class="absolute inset-0 z-20 hidden flex items-center justify-center pointer-events-none">
+                <h2 id="timer-text" class="text-6xl font-black italic text-red-500">3</h2>
+            </div>
+
+            <!-- Overlay -->
+            <div id="overlay" class="absolute inset-0 z-10 flex items-center justify-center p-4 rounded-lg">
+                <div class="dialog-box p-6 rounded-2xl max-w-xs w-full text-center transform transition-all">
+
+                    <div id="start-content">
+                        <h2 class="text-3xl font-black text-red-600 mb-1 italic leading-tight">AGALAG</h2>
+                        <p class="text-[10px] mb-6 text-gray-400 font-bold uppercase tracking-widest">Space Hunter Session</p>
+
+                        <div class="grid grid-cols-4 gap-2 mb-6 justify-items-center">
+                            <button class="ship-choice w-10 h-10 flex items-center justify-center text-xl rounded-full bg-gray-800 transition active-ship" data-color="cyan">🚀</button>
+                            <button class="ship-choice w-10 h-10 flex items-center justify-center text-xl rounded-full bg-gray-800 transition" data-color="green">💚</button>
+                            <button class="ship-choice w-10 h-10 flex items-center justify-center text-xl rounded-full bg-gray-800 transition" data-color="gold">⭐</button>
+                            <button class="ship-choice w-10 h-10 flex items-center justify-center text-xl rounded-full bg-gray-800 transition" data-color="pink">💜</button>
+                        </div>
+
+                        <button id="start-btn" class="bg-red-600 hover:bg-red-700 active:scale-95 text-white w-full py-4 rounded-xl font-black text-xl shadow-lg border-b-4 border-red-800 uppercase tracking-tighter">
+                            Begin Hunt
+                        </button>
+                        <p class="text-[10px] mt-4 text-gray-500 font-bold uppercase">Hold D-Pad for 3s to drag</p>
+                    </div>
+
+                    <div id="end-content" class="hidden">
+                        <h2 id="end-title" class="text-3xl font-black mb-2"></h2>
+                        <div class="bg-black/40 p-3 rounded-lg mb-6 border border-gray-800 text-center">
+                            <p id="level-bonus-text" class="text-xs text-yellow-500 font-bold uppercase mb-1">Enemy Bonus: +0</p>
+                            <p id="end-body" class="text-sm text-gray-300"></p>
+                        </div>
+                        <div class="flex flex-col gap-2">
+                            <button id="next-level-btn" class="bg-green-600 hover:bg-green-700 text-white w-full py-4 rounded-xl font-black text-lg shadow-lg hidden">NEXT LEVEL</button>
+                            <button id="overlay-restart-btn" class="bg-blue-600 hover:bg-blue-700 text-white w-full py-4 rounded-xl font-black text-lg shadow-lg">RETRY RUN</button>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+
+        <!-- Utility Buttons (mobile only) -->
+        <div class="flex flex-row justify-between items-center w-full px-4 pb-6 select-none md:hidden">
+            <div class="flex flex-col items-center gap-2">
+                <button id="quit-btn" class="bg-gray-800 active:bg-gray-900 text-gray-500 w-16 h-16 flex flex-col items-center justify-center rounded-2xl border border-gray-700 shadow-md">
+                    <span class="text-lg">✖</span>
+                    <span class="text-[8px] font-black uppercase">Quit</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Draggable D-Pad (left / fire / right only) -->
+    <div id="floating-dpad">
+        <div class="w-[48px] h-[48px]"></div>
+        <div class="w-[48px] h-[48px]"></div>
+        <div class="w-[48px] h-[48px]"></div>
+
+        <div class="btn-control" id="btn-left">◀</div>
+        <div class="btn-control" id="btn-fire">🔥</div>
+        <div class="btn-control" id="btn-right">▶</div>
+
+        <div class="w-[48px] h-[48px]"></div>
+        <div class="w-[48px] h-[48px]"></div>
+        <div class="w-[48px] h-[48px]"></div>
+    </div>
+
+<script>
+    // ─── DOM Refs ────────────────────────────────────────────────────────────────
+    const canvas        = document.getElementById('gameCanvas');
+    const ctx           = canvas.getContext('2d');
+    const enemyCountEl  = document.getElementById('enemy-count');
+    const levelEl       = document.getElementById('level-indicator');
+    const hiLevelEl     = document.getElementById('hi-level');
+    const scoreEl       = document.getElementById('current-score');
+    const hiScoreEl     = document.getElementById('hi-score');
+    const overlay       = document.getElementById('overlay');
+    const startContent  = document.getElementById('start-content');
+    const endContent    = document.getElementById('end-content');
+    const nextLevelBtn  = document.getElementById('next-level-btn');
+    const restartBtn    = document.getElementById('overlay-restart-btn');
+    const timerLayer    = document.getElementById('ready-timer');
+    const timerText     = document.getElementById('timer-text');
+    const dpad          = document.getElementById('floating-dpad');
+    const quitBtn       = document.getElementById('quit-btn');
+    const muteBtn       = document.getElementById('mute-btn');
+    const svgMuted      = document.getElementById('svg-muted');
+    const svgUnmuted    = document.getElementById('svg-unmuted');
+    const fullscreenBtn = document.getElementById('fullscreen-btn');
+
+    // ─── Global State ────────────────────────────────────────────────────────────
+    let globalHiScore = 0;
+    let globalHiLevel = 1;
+    let currentLevel  = 1;
+    let currentScore  = 0;
+    let gameState     = 'START';   // START | PLAYING | ENDED
+    let gameActive    = false;
+    let animFrameId   = null;
+    let isMuted       = false;
+
+    // ─── Ship Color Palette ──────────────────────────────────────────────────────
+    const SHIP_COLORS = {
+        cyan:  { body: '#00e5ff', wing: '#0099cc', engine: '#ffffff' },
+        green: { body: '#00ff88', wing: '#00aa55', engine: '#aaffcc' },
+        gold:  { body: '#ffd700', wing: '#cc9900', engine: '#fffacd' },
+        pink:  { body: '#cc55ff', wing: '#882299', engine: '#ffccff' },
+    };
+    let chosenColor = 'cyan';
+
+    // ─── Game Entities ───────────────────────────────────────────────────────────
+    let player, enemies, playerBullets, enemyBullets;
+    let shootCooldown = 0;
+    let totalEnemies  = 0;
+
+    // ─── 8-BIT SOUND ENGINE ──────────────────────────────────────────────────────
+    let audioCtx = null;
+
+    function initAudio() {
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+
+    function playSound(freq, type, duration, volume = 0.1, startDelay = 0) {
+        if (isMuted || !audioCtx) return;
+        const osc  = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = type;
+        osc.frequency.setValueAtTime(freq, audioCtx.currentTime + startDelay);
+        gain.gain.setValueAtTime(volume, audioCtx.currentTime + startDelay);
+        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + startDelay + duration);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start(audioCtx.currentTime + startDelay);
+        osc.stop(audioCtx.currentTime + startDelay + duration);
+    }
+
+    const SFX = {
+        start: () => {
+            [330, 392, 494, 659].forEach((f, i) => setTimeout(() => playSound(f, 'square', 0.15, 0.06), i * 90));
+        },
+        shoot: () => {
+            playSound(880, 'square', 0.08, 0.05);
+            playSound(660, 'square', 0.12, 0.04, 0.04);
+        },
+        explode: () => {
+            playSound(200, 'sawtooth', 0.25, 0.08);
+            setTimeout(() => playSound(120, 'sawtooth', 0.3, 0.06), 80);
+            setTimeout(() => playSound(80,  'sawtooth', 0.4, 0.05), 180);
+        },
+        victory: () => {
+            [523, 659, 783, 1046, 1318].forEach((f, i) => setTimeout(() => playSound(f, 'square', 0.2, 0.07), i * 100));
+        },
+        defeat: () => {
+            playSound(300, 'sawtooth', 0.5, 0.06);
+            setTimeout(() => playSound(200, 'sawtooth', 0.5, 0.06), 150);
+            setTimeout(() => playSound(130, 'sawtooth', 0.7, 0.06), 350);
+        },
+        enemyShoot: () => playSound(440, 'triangle', 0.1, 0.04),
+        siren: () => {
+            if (Date.now() % 500 < 20) {
+                playSound(160 + Math.sin(Date.now() / 350) * 25, 'triangle', 0.3, 0.025);
+            }
+        },
+    };
+
+    // ─── Canvas Sizing ───────────────────────────────────────────────────────────
+    function resizeCanvas() {
+        const availW = window.innerWidth  - 30;
+        const availH = window.innerHeight - 150;
+        // Fixed logical resolution; CSS will scale it
+        canvas.width  = Math.max(320, Math.min(600, availW));
+        canvas.height = Math.max(480, Math.min(800, availH));
+    }
+
+    // ─── Build Enemy Formation ────────────────────────────────────────────────────
+    function buildEnemies() {
+        enemies = [];
+        const cols = Math.min(6 + currentLevel, 10);
+        const rows = Math.min(2 + Math.floor(currentLevel / 2), 5);
+        const spacingX = Math.floor(canvas.width / (cols + 1));
+        const spacingY = 44;
+        const startY   = canvas.height - rows * spacingY - 60;
+
+        for (let r = 0; r < rows; r++) {
+            for (let c = 0; c < cols; c++) {
+                enemies.push({
+                    x: spacingX * (c + 1) - 16,
+                    y: startY + r * spacingY,
+                    w: 32, h: 24,
+                    bobOffset: Math.random() * Math.PI * 2,
+                    shootTimer: Math.floor(Math.random() * 120 + 60),
+                    speed: 0.8 + currentLevel * 0.15,
+                    dir: (c % 2 === 0) ? 1 : -1,
+                    alive: true,
+                });
+            }
+        }
+        totalEnemies = enemies.length;
+        updateEnemyCounter();
+    }
+
+    function updateEnemyCounter() {
+        const alive = enemies.filter(e => e.alive).length;
+        enemyCountEl.innerText = alive.toString().padStart(3, '0');
+    }
+
+    // ─── Reset / Init ────────────────────────────────────────────────────────────
+    function resetGame(nextLevel = false, fullRestart = false) {
+        initAudio();
+        if (fullRestart) { currentLevel = 1; currentScore = 0; }
+        else if (nextLevel) { currentLevel++; }
+
+        levelEl.innerText = `LEVEL ${currentLevel}`;
+        scoreEl.innerText = currentScore.toString().padStart(4, '0');
+
+        if (animFrameId) { cancelAnimationFrame(animFrameId); animFrameId = null; }
+
+        resizeCanvas();
+
+        player = {
+            x: 40,
+            y: 60,
+            w: 32, h: 28,
+            baseX: 40,
+            state: 'FORMATION',   // FORMATION | DIVING
+            timeInDive: 0,
+            diveSpeed: 2.5 + currentLevel * 0.2,
+        };
+
+        playerBullets = [];
+        enemyBullets  = [];
+        shootCooldown = 0;
+
+        buildEnemies();
+
+        gameState  = 'PLAYING';
+        gameActive = false;
+        overlay.classList.add('hidden');
+        startCountdown();
+        SFX.start();
+    }
+
+    // ─── Countdown ───────────────────────────────────────────────────────────────
+    function startCountdown() {
+        timerLayer.classList.remove('hidden');
+        let count = 3;
+        timerText.innerText = count;
+        const timer = setInterval(() => {
+            count--;
+            if (count > 0) {
+                timerText.innerText = count;
+                playSound(440, 'square', 0.1, 0.05);
+            } else if (count === 0) {
+                timerText.innerText = 'FIGHT!';
+                playSound(880, 'square', 0.2, 0.07);
+            } else {
+                clearInterval(timer);
+                timerLayer.classList.add('hidden');
+                gameActive = true;
+            }
+        }, 700);
+        animFrameId = requestAnimationFrame(gameLoop);
+    }
+
+    // ─── Collision ───────────────────────────────────────────────────────────────
+    function rectsOverlap(a, b) {
+        return !(a.x + a.w < b.x || b.x + b.w < a.x || a.y + a.h < b.y || b.y + b.h < a.y);
+    }
+
+    // ─── End Game ────────────────────────────────────────────────────────────────
+    function endGame(won) {
+        gameState  = 'ENDED';
+        gameActive = false;
+
+        const alive      = enemies.filter(e => e.alive).length;
+        const enemyBonus = (totalEnemies - alive) * 50;
+        currentScore    += enemyBonus;
+
+        if (currentScore > globalHiScore) globalHiScore = currentScore;
+        if (currentLevel  > globalHiLevel) globalHiLevel = currentLevel;
+
+        hiScoreEl.innerText  = globalHiScore.toString().padStart(4, '0');
+        hiLevelEl.innerText  = globalHiLevel;
+        scoreEl.innerText    = currentScore.toString().padStart(4, '0');
+
+        const endTitle      = document.getElementById('end-title');
+        const levelBonusTxt = document.getElementById('level-bonus-text');
+        const endBody       = document.getElementById('end-body');
+
+        if (won) {
+            endTitle.innerText      = '🏆 VICTORY!';
+            endTitle.className      = 'text-3xl font-black mb-2 text-green-400';
+            levelBonusTxt.innerText = `Enemy Bonus: +${enemyBonus}`;
+            endBody.innerText       = `Score: ${currentScore}`;
+            nextLevelBtn.classList.remove('hidden');
+            SFX.victory();
+        } else {
+            endTitle.innerText      = '💀 DESTROYED';
+            endTitle.className      = 'text-3xl font-black mb-2 text-red-400';
+            levelBonusTxt.innerText = `Enemy Bonus: +${enemyBonus}`;
+            endBody.innerText       = `Score: ${currentScore}`;
+            nextLevelBtn.classList.add('hidden');
+            SFX.defeat();
+        }
+
+        startContent.classList.add('hidden');
+        endContent.classList.remove('hidden');
+        overlay.classList.remove('hidden');
+    }
+
+    // ─── Input State ─────────────────────────────────────────────────────────────
+    const keys = { left: false, right: false, fire: false };
+
+    window.addEventListener('keydown', e => {
+        if (e.code === 'ArrowLeft')  keys.left  = true;
+        if (e.code === 'ArrowRight') keys.right = true;
+        if (e.code === 'Space')      { keys.fire = true; e.preventDefault(); }
+    });
+    window.addEventListener('keyup', e => {
+        if (e.code === 'ArrowLeft')  keys.left  = false;
+        if (e.code === 'ArrowRight') keys.right = false;
+        if (e.code === 'Space')      keys.fire  = false;
+    });
+
+    function bindTouch(id, key) {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.addEventListener('touchstart', e => { e.preventDefault(); keys[key] = true;  }, { passive: false });
+        el.addEventListener('touchend',   e => { e.preventDefault(); keys[key] = false; }, { passive: false });
+        el.addEventListener('touchcancel',e => { e.preventDefault(); keys[key] = false; }, { passive: false });
+    }
+    bindTouch('btn-left',  'left');
+    bindTouch('btn-right', 'right');
+    bindTouch('btn-fire',  'fire');
+
+    // ─── Update ──────────────────────────────────────────────────────────────────
+    function update() {
+        if (!gameActive) return;
+
+        // Shoot cooldown
+        if (shootCooldown > 0) shootCooldown--;
+
+        // ── Player ──────────────────────────────────────────────────────────────
+        if (player.state === 'FORMATION') {
+            // Bob gently at formation position
+            player.y = 60 + Math.sin(Date.now() * 0.004) * 5;
+            player.x = player.baseX;
+
+            // Fire / start dive on Space / fire button
+            if (keys.fire && shootCooldown <= 0) {
+                // Fire a bullet downward toward the enemies (positive y = toward bottom)
+                playerBullets.push({
+                    x: player.x + player.w / 2 - 2,
+                    y: player.y + player.h,
+                    w: 4, h: 12,
+                    dy: 8 + currentLevel * 0.3,
+                });
+                shootCooldown = 22;
+                SFX.shoot();
+            }
+
+            // Left/right movement in formation
+            if (keys.left)  player.baseX = Math.max(5, player.baseX - 3);
+            if (keys.right) player.baseX = Math.min(canvas.width - player.w - 5, player.baseX + 3);
+
+        } else if (player.state === 'DIVING') {
+            player.timeInDive++;
+            player.y += player.diveSpeed;
+
+            // Sine auto-swerve
+            const autoSwerve = Math.sin(player.timeInDive * 0.045) * 60;
+            if (keys.left)  player.baseX = Math.max(5, player.baseX - 3.5);
+            if (keys.right) player.baseX = Math.min(canvas.width - player.w - 5, player.baseX + 3.5);
+            player.x = player.baseX + autoSwerve;
+
+            // Shoot during dive
+            if (keys.fire && shootCooldown <= 0) {
+                playerBullets.push({
+                    x: player.x + player.w / 2 - 2,
+                    y: player.y + player.h,
+                    w: 4, h: 12,
+                    dy: 9 + currentLevel * 0.3,
+                });
+                shootCooldown = 22;
+                SFX.shoot();
+            }
+
+            // Off bottom → reset to formation
+            if (player.y > canvas.height + 10) {
+                player.state    = 'FORMATION';
+                player.y        = 60;
+                player.baseX    = Math.max(5, Math.min(canvas.width - player.w - 5, player.baseX));
+                player.timeInDive = 0;
+            }
+        }
+
+        // ── Enemies ──────────────────────────────────────────────────────────────
+        const aliveEnemies = enemies.filter(e => e.alive);
+        aliveEnemies.forEach(e => {
+            e.x += e.speed * e.dir;
+            if (e.x <= 5 || e.x + e.w >= canvas.width - 5) e.dir *= -1;
+
+            // Shoot upward toward the player (negative dy = toward top of screen)
+            e.shootTimer--;
+            if (e.shootTimer <= 0) {
+                enemyBullets.push({
+                    x: e.x + e.w / 2 - 2,
+                    y: e.y,
+                    w: 4, h: 12,
+                    dy: -(5 + currentLevel * 0.25),
+                });
+                e.shootTimer = Math.floor(Math.random() * 90 + 40);
+                SFX.enemyShoot();
+            }
+        });
+
+        SFX.siren();
+
+        // ── Player Bullets ────────────────────────────────────────────────────────
+        for (let i = playerBullets.length - 1; i >= 0; i--) {
+            const b = playerBullets[i];
+            b.y += b.dy;
+
+            // Off-screen cleanup
+            if (b.y > canvas.height || b.y < -20) { playerBullets.splice(i, 1); continue; }
+
+            // Hit enemy
+            let hitEnemy = false;
+            for (let j = enemies.length - 1; j >= 0; j--) {
+                if (!enemies[j].alive) continue;
+                if (rectsOverlap(b, enemies[j])) {
+                    enemies[j].alive = false;
+                    playerBullets.splice(i, 1);
+                    currentScore += 100;
+                    scoreEl.innerText = currentScore.toString().padStart(4, '0');
+                    SFX.explode();
+                    updateEnemyCounter();
+                    hitEnemy = true;
+                    break;
+                }
+            }
+            if (hitEnemy) continue;
+        }
+
+        // ── Enemy Bullets ─────────────────────────────────────────────────────────
+        for (let i = enemyBullets.length - 1; i >= 0; i--) {
+            const b = enemyBullets[i];
+            b.y += b.dy;
+
+            // Off-screen cleanup
+            if (b.y < -20 || b.y > canvas.height) { enemyBullets.splice(i, 1); continue; }
+
+            // Hit player
+            if (rectsOverlap(b, player)) {
+                enemyBullets.splice(i, 1);
+                endGame(false);
+                return;
+            }
+        }
+
+        // ── Player–Enemy Collision (kamikaze) ─────────────────────────────────────
+        for (let e of enemies) {
+            if (!e.alive) continue;
+            if (rectsOverlap(player, e)) {
+                e.alive = false;
+                SFX.explode();
+                updateEnemyCounter();
+                // Kamikaze still counts as a win
+                if (enemies.filter(en => en.alive).length === 0) {
+                    endGame(true);
+                    return;
+                }
+            }
+        }
+
+        // ── Check Win ─────────────────────────────────────────────────────────────
+        if (enemies.filter(e => e.alive).length === 0) {
+            endGame(true);
+        }
+    }
+
+    // ─── Draw ────────────────────────────────────────────────────────────────────
+    function drawStars() {
+        // Deterministic star field seeded by canvas size
+        ctx.fillStyle = 'rgba(255,255,255,0.5)';
+        const seed = canvas.width * canvas.height;
+        for (let i = 0; i < 80; i++) {
+            // Cheap LCG pseudo-random from fixed seed
+            const sx = ((seed * (i * 47 + 13)) % canvas.width + canvas.width) % canvas.width;
+            const sy = ((seed * (i * 31 + 7))  % canvas.height + canvas.height) % canvas.height;
+            const size = (i % 3 === 0) ? 2 : 1;
+            ctx.fillRect(sx, sy, size, size);
+        }
+    }
+
+    function drawPlayerShip(x, y, w, h) {
+        const pal = SHIP_COLORS[chosenColor];
+        ctx.save();
+
+        // Engine glow
+        ctx.shadowBlur  = 12;
+        ctx.shadowColor = pal.engine;
+
+        // Body
+        ctx.fillStyle = pal.body;
+        ctx.beginPath();
+        ctx.moveTo(x + w / 2, y);              // nose
+        ctx.lineTo(x + w, y + h * 0.6);        // right shoulder
+        ctx.lineTo(x + w * 0.7, y + h);        // right engine
+        ctx.lineTo(x + w * 0.3, y + h);        // left engine
+        ctx.lineTo(x, y + h * 0.6);            // left shoulder
+        ctx.closePath();
+        ctx.fill();
+
+        // Wings
+        ctx.fillStyle = pal.wing;
+        ctx.beginPath();
+        ctx.moveTo(x + w * 0.2, y + h * 0.5);
+        ctx.lineTo(x, y + h);
+        ctx.lineTo(x + w * 0.35, y + h * 0.7);
+        ctx.closePath();
+        ctx.fill();
+        ctx.beginPath();
+        ctx.moveTo(x + w * 0.8, y + h * 0.5);
+        ctx.lineTo(x + w, y + h);
+        ctx.lineTo(x + w * 0.65, y + h * 0.7);
+        ctx.closePath();
+        ctx.fill();
+
+        // Engine flame
+        ctx.fillStyle = pal.engine;
+        const flicker = Math.sin(Date.now() * 0.02) * 3;
+        ctx.beginPath();
+        ctx.moveTo(x + w * 0.35, y + h);
+        ctx.lineTo(x + w * 0.5,  y + h + 8 + flicker);
+        ctx.lineTo(x + w * 0.65, y + h);
+        ctx.closePath();
+        ctx.fill();
+
+        ctx.restore();
+    }
+
+    function drawEnemyShip(x, y, w, h) {
+        ctx.save();
+        ctx.shadowBlur  = 10;
+        ctx.shadowColor = '#ff4444';
+
+        // Body — inverted triangle (pointing up, enemy comes from below)
+        ctx.fillStyle = '#cc2222';
+        ctx.beginPath();
+        ctx.moveTo(x + w / 2, y + h);          // bottom nose
+        ctx.lineTo(x + w, y + h * 0.3);        // right shoulder
+        ctx.lineTo(x + w * 0.7, y);            // right top
+        ctx.lineTo(x + w * 0.3, y);            // left top
+        ctx.lineTo(x, y + h * 0.3);            // left shoulder
+        ctx.closePath();
+        ctx.fill();
+
+        // Accent
+        ctx.fillStyle = '#ff6666';
+        ctx.beginPath();
+        ctx.moveTo(x + w * 0.35, y + h * 0.1);
+        ctx.lineTo(x + w * 0.65, y + h * 0.1);
+        ctx.lineTo(x + w * 0.5, y + h * 0.55);
+        ctx.closePath();
+        ctx.fill();
+
+        ctx.restore();
+    }
+
+    function draw() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // Background
+        ctx.fillStyle = '#000010';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        drawStars();
+
+        // Player ship
+        drawPlayerShip(player.x, player.y, player.w, player.h);
+
+        // Enemies
+        enemies.forEach(e => {
+            if (!e.alive) return;
+            const bob = Math.sin(Date.now() * 0.003 + e.bobOffset) * 3;
+            drawEnemyShip(e.x, e.y + bob, e.w, e.h);
+        });
+
+        // Player bullets
+        ctx.fillStyle = '#88ffff';
+        playerBullets.forEach(b => {
+            ctx.shadowBlur  = 6;
+            ctx.shadowColor = '#00ffff';
+            ctx.fillRect(b.x, b.y, b.w, b.h);
+        });
+        ctx.shadowBlur = 0;
+
+        // Enemy bullets
+        ctx.fillStyle = '#ff4444';
+        enemyBullets.forEach(b => {
+            ctx.shadowBlur  = 6;
+            ctx.shadowColor = '#ff0000';
+            ctx.fillRect(b.x, b.y, b.w, b.h);
+        });
+        ctx.shadowBlur = 0;
+    }
+
+    // ─── Game Loop ───────────────────────────────────────────────────────────────
+    function gameLoop() {
+        update();
+        draw();
+        if (gameState === 'PLAYING') animFrameId = requestAnimationFrame(gameLoop);
+    }
+
+    // ─── UI Button Wiring ────────────────────────────────────────────────────────
+    document.getElementById('start-btn').addEventListener('click', () => {
+        resetGame(false, true);
+    });
+
+    nextLevelBtn.addEventListener('click', () => {
+        resetGame(true, false);
+    });
+
+    restartBtn.addEventListener('click', () => {
+        resetGame(false, true);
+    });
+
+    quitBtn.addEventListener('click', () => {
+        if (window.parent !== window) {
+            window.parent.postMessage({ action: 'quit' }, '*');
+        } else {
+            window.location.reload();
+        }
+    });
+
+    muteBtn.addEventListener('click', () => {
+        isMuted = !isMuted;
+        svgMuted.classList.toggle('hidden', !isMuted);
+        svgUnmuted.classList.toggle('hidden', isMuted);
+    });
+
+    fullscreenBtn.addEventListener('click', () => {
+        const el = document.documentElement;
+        if (!document.fullscreenElement) {
+            el.requestFullscreen && el.requestFullscreen();
+        } else {
+            document.exitFullscreen && document.exitFullscreen();
+        }
+    });
+
+    // ─── Ship Color Chooser ──────────────────────────────────────────────────────
+    document.querySelectorAll('.ship-choice').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.ship-choice').forEach(b => b.classList.remove('active-ship'));
+            btn.classList.add('active-ship');
+            chosenColor = btn.dataset.color;
+        });
+    });
+
+    // ─── Draggable D-Pad ─────────────────────────────────────────────────────────
+    (function () {
+        let holdTimer = null;
+        let isDragging = false;
+        let dragOffX = 0, dragOffY = 0;
+
+        function startHold(clientX, clientY) {
+            holdTimer = setTimeout(() => {
+                isDragging = true;
+                dpad.classList.add('is-dragging');
+                const rect = dpad.getBoundingClientRect();
+                dragOffX = clientX - rect.left;
+                dragOffY = clientY - rect.top;
+            }, 3000);
+        }
+
+        function stopHold() {
+            clearTimeout(holdTimer);
+            if (isDragging) {
+                isDragging = false;
+                dpad.classList.remove('is-dragging');
+            }
+        }
+
+        function moveDpad(clientX, clientY) {
+            if (!isDragging) return;
+            dpad.style.right  = 'auto';
+            dpad.style.bottom = 'auto';
+            dpad.style.left   = (clientX - dragOffX) + 'px';
+            dpad.style.top    = (clientY - dragOffY) + 'px';
+        }
+
+        dpad.addEventListener('touchstart', e => { startHold(e.touches[0].clientX, e.touches[0].clientY); }, { passive: true });
+        dpad.addEventListener('touchend',   stopHold);
+        dpad.addEventListener('touchmove',  e => { moveDpad(e.touches[0].clientX, e.touches[0].clientY); e.preventDefault(); }, { passive: false });
+
+        dpad.addEventListener('mousedown',  e => startHold(e.clientX, e.clientY));
+        dpad.addEventListener('mouseup',    stopHold);
+        window.addEventListener('mousemove',e => moveDpad(e.clientX, e.clientY));
+        window.addEventListener('mouseup',  stopHold);
+    })();
+
+    // ─── Resize ──────────────────────────────────────────────────────────────────
+    window.addEventListener('resize', () => {
+        if (gameState === 'START') resizeCanvas();
+    });
+
+    // ─── Initial setup ───────────────────────────────────────────────────────────
+    resizeCanvas();
+    // Draw a static preview so the canvas isn't blank
+    (function drawStartPreview() {
+        ctx.fillStyle = '#000010';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        drawStars();
+        // Draw a sample ship in the center
+        const cx = canvas.width / 2 - 16;
+        const cy = canvas.height / 2 - 14;
+        drawPlayerShip(cx, cy, 32, 28);
+    })();
+</script>
+</body>
+</html>
