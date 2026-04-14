@@ -243,6 +243,7 @@
 
         for (let i = cubes.length - 1; i >= 0; i--) {
             const cube = cubes[i]; if (!cube.parent) continue;
+            resolveSolidOverlap(cube);
 
             // Hanging / Stack Gravity
             const support = checkSupport(cube);
@@ -273,6 +274,7 @@
                 boardIsActive = true; 
                 cube.userData.velocity.z -= slopeGravity; // Downhill force
                 cube.position.add(cube.userData.velocity);
+                resolveSolidOverlap(cube);
                 cube.userData.velocity.multiplyScalar(0.972); // Slightly more slippery
                 if (hasVisibleCubeMotion(cube, speed)) visibleMotion = true;
 
@@ -317,11 +319,40 @@
     function checkSupport(cube) {
         for (let other of cubes) {
             if (other === cube || !other.parent) continue;
-            const hDist = Math.sqrt(Math.pow(cube.position.x-other.position.x,2)+Math.pow(cube.position.z-other.position.z,2));
-            // Center of gravity check: must be mostly over the cube below
-            if (hDist < cubeSize * 0.75 && cube.position.y > other.position.y && Math.abs(cube.position.y - (other.position.y + cubeSize)) < 0.4) return other;
+            const xOverlap = cubeSize - Math.abs(cube.position.x - other.position.x);
+            const zOverlap = cubeSize - Math.abs(cube.position.z - other.position.z);
+            const yDelta = cube.position.y - (other.position.y + cubeSize);
+            // Must have meaningful top overlap to be considered stable support
+            if (xOverlap > cubeSize * 0.55 && zOverlap > cubeSize * 0.55 && yDelta > -0.25 && yDelta < 0.45) return other;
         }
         return null;
+    }
+
+    function resolveSolidOverlap(cube) {
+        for (let other of cubes) {
+            if (other === cube || !other.parent) continue;
+            const dx = cube.position.x - other.position.x;
+            const dy = cube.position.y - other.position.y;
+            const dz = cube.position.z - other.position.z;
+            const overlapX = cubeSize - Math.abs(dx);
+            const overlapY = cubeSize - Math.abs(dy);
+            const overlapZ = cubeSize - Math.abs(dz);
+            if (overlapX <= 0 || overlapY <= 0 || overlapZ <= 0) continue;
+
+            if (overlapY <= overlapX && overlapY <= overlapZ) {
+                const dirY = dy >= 0 ? 1 : -1;
+                cube.position.y += dirY * (overlapY + 0.001);
+                if ((dirY > 0 && cube.userData.velocity.y < 0) || (dirY < 0 && cube.userData.velocity.y > 0)) cube.userData.velocity.y = 0;
+            } else if (overlapX <= overlapZ) {
+                const dirX = dx >= 0 ? 1 : -1;
+                cube.position.x += dirX * (overlapX + 0.001);
+                cube.userData.velocity.x += dirX * 0.02;
+            } else {
+                const dirZ = dz >= 0 ? 1 : -1;
+                cube.position.z += dirZ * (overlapZ + 0.001);
+                cube.userData.velocity.z += dirZ * 0.02;
+            }
+        }
     }
 
     function handleCollision(moving, other) {
@@ -590,6 +621,7 @@
 
         for (let i = cubes.length - 1; i >= 0; i--) {
             const cube = cubes[i]; if (!cube.parent) continue;
+            resolveSolidOverlap(cube);
             const support = checkSupport(cube);
             if (!support && cube.position.y > cubeSize/2) { cube.userData.velocity.y -= verticalGravity; boardIsActive = true; }
             else if (support && cube.userData.velocity.y < 0) { cube.userData.velocity.y = 0; cube.position.y = support.position.y + cubeSize; }
@@ -604,6 +636,7 @@
             const speed = cube.userData.velocity.length();
             if (cube.userData.isMoving || speed > 0.01) {
                 boardIsActive = true; cube.userData.velocity.z -= slopeGravity; cube.position.add(cube.userData.velocity);
+                resolveSolidOverlap(cube);
                 cube.userData.velocity.multiplyScalar(0.97);
                 if (speed < 0.02 && cube.position.y <= cubeSize/2 + 0.02) { stopCube(cube); }
                 if (cube.position.z < -worldDepth/2 + 0.5) { cube.position.z = -worldDepth/2 + 0.5; cube.userData.velocity.z = 0; }
@@ -624,10 +657,39 @@
     function checkSupport(cube) {
         for (let other of cubes) {
             if (other === cube || !other.parent) continue;
-            const hDist = Math.sqrt(Math.pow(cube.position.x-other.position.x,2)+Math.pow(cube.position.z-other.position.z,2));
-            if (hDist < cubeSize*0.8 && cube.position.y > other.position.y && Math.abs(cube.position.y - (other.position.y+cubeSize)) < 0.25) return other;
+            const xOverlap = cubeSize - Math.abs(cube.position.x - other.position.x);
+            const zOverlap = cubeSize - Math.abs(cube.position.z - other.position.z);
+            const yDelta = cube.position.y - (other.position.y + cubeSize);
+            if (xOverlap > cubeSize * 0.55 && zOverlap > cubeSize * 0.55 && yDelta > -0.25 && yDelta < 0.45) return other;
         }
         return null;
+    }
+
+    function resolveSolidOverlap(cube) {
+        for (let other of cubes) {
+            if (other === cube || !other.parent) continue;
+            const dx = cube.position.x - other.position.x;
+            const dy = cube.position.y - other.position.y;
+            const dz = cube.position.z - other.position.z;
+            const overlapX = cubeSize - Math.abs(dx);
+            const overlapY = cubeSize - Math.abs(dy);
+            const overlapZ = cubeSize - Math.abs(dz);
+            if (overlapX <= 0 || overlapY <= 0 || overlapZ <= 0) continue;
+
+            if (overlapY <= overlapX && overlapY <= overlapZ) {
+                const dirY = dy >= 0 ? 1 : -1;
+                cube.position.y += dirY * (overlapY + 0.001);
+                if ((dirY > 0 && cube.userData.velocity.y < 0) || (dirY < 0 && cube.userData.velocity.y > 0)) cube.userData.velocity.y = 0;
+            } else if (overlapX <= overlapZ) {
+                const dirX = dx >= 0 ? 1 : -1;
+                cube.position.x += dirX * (overlapX + 0.001);
+                cube.userData.velocity.x += dirX * 0.02;
+            } else {
+                const dirZ = dz >= 0 ? 1 : -1;
+                cube.position.z += dirZ * (overlapZ + 0.001);
+                cube.userData.velocity.z += dirZ * 0.02;
+            }
+        }
     }
 
     function handleCollision(moving, other) {
