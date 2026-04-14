@@ -225,6 +225,14 @@
         cubes.push(activeCube); activeCube = null;
     }
 
+    function hasVisibleCubeMotion(cube, speed) {
+        return speed > visibleSpeedThreshold || Math.abs(cube.userData.velocity.y) > visibleVerticalVelocityThreshold || cube.position.y > visibleHeightThreshold;
+    }
+
+    function shouldSpawnShooter(boardIsActive, isStalled) {
+        return (!boardIsActive || isStalled) && !activeCube && !isGameOver && effects.length === 0;
+    }
+
     function animate() {
         requestAnimationFrame(animate);
         let boardIsActive = false;
@@ -266,7 +274,7 @@
                 cube.userData.velocity.z -= slopeGravity; // Downhill force
                 cube.position.add(cube.userData.velocity);
                 cube.userData.velocity.multiplyScalar(0.972); // Slightly more slippery
-                if (speed > visibleSpeedThreshold || Math.abs(cube.userData.velocity.y) > visibleVerticalVelocityThreshold || cube.position.y > visibleHeightThreshold) visibleMotion = true;
+                if (hasVisibleCubeMotion(cube, speed)) visibleMotion = true;
 
                 if (speed < 0.02 && cube.position.y <= cubeSize/2 + 0.05) { stopCube(cube); }
                 
@@ -302,7 +310,7 @@
         const now = performance.now();
         if (visibleMotion || activeCube || effects.length > 0) lastVisibleMotionTime = now;
         const isStalled = now - lastVisibleMotionTime >= stalledSpawnDelayMs;
-        if ((!boardIsActive || isStalled) && !activeCube && !isGameOver && effects.length === 0) spawnShooter();
+        if (shouldSpawnShooter(boardIsActive, isStalled)) spawnShooter();
         renderer.render(scene, camera);
     }
 
