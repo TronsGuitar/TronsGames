@@ -87,6 +87,10 @@
     let score = 0, isGameOver = false, isMouseDown = false;
     const worldWidth = 7, worldDepth = 26, cubeSize = 1.1, deadLineZ = 10.5; 
     const slopeGravity = 0.0075, verticalGravity = 0.045; 
+    const visibleAngularVelocityThreshold = 0.02;
+    const visibleSpeedThreshold = 0.06;
+    const visibleVerticalVelocityThreshold = 0.04;
+    const visibleHeightThreshold = cubeSize/2 + 0.2;
     let effects = [], fireworks = [];
     let lastVisibleMotionTime = performance.now();
     const stalledSpawnDelayMs = 2500;
@@ -252,7 +256,7 @@
                 cube.rotation.z += cube.userData.angularVelocity.z;
                 cube.userData.angularVelocity.multiplyScalar(0.95);
                 boardIsActive = true;
-                if (cube.userData.angularVelocity.length() > 0.02) visibleMotion = true;
+                if (cube.userData.angularVelocity.length() > visibleAngularVelocityThreshold) visibleMotion = true;
             }
 
             const speed = cube.userData.velocity.length();
@@ -262,7 +266,7 @@
                 cube.userData.velocity.z -= slopeGravity; // Downhill force
                 cube.position.add(cube.userData.velocity);
                 cube.userData.velocity.multiplyScalar(0.972); // Slightly more slippery
-                if (speed > 0.06 || Math.abs(cube.userData.velocity.y) > 0.04 || cube.position.y > cubeSize/2 + 0.2) visibleMotion = true;
+                if (speed > visibleSpeedThreshold || Math.abs(cube.userData.velocity.y) > visibleVerticalVelocityThreshold || cube.position.y > visibleHeightThreshold) visibleMotion = true;
 
                 if (speed < 0.02 && cube.position.y <= cubeSize/2 + 0.05) { stopCube(cube); }
                 
