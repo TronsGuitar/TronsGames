@@ -365,13 +365,26 @@
     function handleCollision(moving, other) {
         if (moving.userData.value === other.userData.value) performMerge(moving, other);
         else {
-            const collisionVec = new THREE.Vector3().subVectors(other.position, moving.position).normalize();
-            const relVel = moving.userData.velocity.length();
-            other.userData.velocity.add(collisionVec.clone().multiplyScalar(relVel * 0.82));
-            const bounceVec = new THREE.Vector3().subVectors(moving.position, other.position).normalize();
-            moving.userData.velocity.copy(bounceVec.multiplyScalar(relVel * 0.28));
-            const minMove = (cubeSize - moving.position.distanceTo(other.position)) / 2;
-            moving.position.add(bounceVec.multiplyScalar(minMove)); other.position.add(collisionVec.multiplyScalar(minMove));
+            // Elastic collision with momentum transfer (pool-ball physics)
+            const normal = new THREE.Vector3().subVectors(other.position, moving.position).normalize();
+            const relVel = new THREE.Vector3().subVectors(moving.userData.velocity, other.userData.velocity);
+            const normalSpeed = relVel.dot(normal);
+            // Only resolve if blocks are approaching each other
+            if (normalSpeed <= 0) return;
+            // Equal-mass elastic collision with restitution for energy loss
+            const restitution = 0.85;
+            const impulse = normalSpeed * (1 + restitution) / 2;
+            const impulseVec = normal.clone().multiplyScalar(impulse);
+            moving.userData.velocity.sub(impulseVec);
+            other.userData.velocity.add(impulseVec);
+            // Separate overlapping blocks
+            const dist = moving.position.distanceTo(other.position);
+            const overlap = cubeSize - dist;
+            if (overlap > 0) {
+                const sep = normal.clone().multiplyScalar(overlap / 2 + overlapEpsilon);
+                moving.position.sub(sep);
+                other.position.add(sep);
+            }
             popCube(moving); popCube(other);
         }
     }
