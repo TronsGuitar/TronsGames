@@ -98,6 +98,7 @@
     let lastVisibleMotionTime = performance.now();
     let lastSpawnTime = performance.now();
     const stalledSpawnDelayMs = 2500;
+    const hardSpawnTimeoutMs = 5000;
 
     function createWoodTexture() {
         const canvas = document.createElement('canvas');
@@ -211,7 +212,7 @@
     }
 
     function spawnShooter() {
-        if (isGameOver) return;
+        if (isGameOver || activeCube) return;
         activeCube = createCube([2, 4, 8, 16, 32][Math.floor(Math.random()*5)], 0, worldDepth/2 - 1.5);
         scene.slopeGroup.add(activeCube);
         lastSpawnTime = performance.now();
@@ -317,7 +318,7 @@
         const now = performance.now();
         if (visibleMotion || activeCube || effects.length > 0) lastVisibleMotionTime = now;
         const isStalled = now - lastVisibleMotionTime >= stalledSpawnDelayMs;
-        const isHardSpawnTimeout = now - lastSpawnTime >= 5000;
+        const isHardSpawnTimeout = now - lastSpawnTime >= hardSpawnTimeoutMs;
         if (shouldSpawnShooter(boardIsActive, isStalled) || isHardSpawnTimeout) spawnShooter();
         renderer.render(scene, camera);
     }
